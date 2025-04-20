@@ -10,9 +10,24 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useLanguage } from "@/contexts/language-context"
 
+// Importe o toast
+import { useToast } from "@/components/ui/use-toast"
+
+// Dentro da função VideosPage, adicione:
 export default function VideosPage() {
   const pathname = usePathname()
   const { t } = useLanguage()
+  const { toast } = useToast() // Adicione o hook useToast
+
+  // Função para lidar com a adição de vídeo
+  const handleAddVideo = () => {
+    // Simulação de adição de vídeo
+    toast({
+      title: "Vídeo adicionado com sucesso!",
+      description: "O vídeo foi adicionado à sua biblioteca.",
+      variant: "default",
+    })
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -47,13 +62,17 @@ export default function VideosPage() {
             <Users className="h-4 w-4" />
             {t("patients")}
           </Link>
-          <div
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed"
-            title="Disponível na página de cada paciente"
+          <Link
+            href="/materiais"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+              pathname === "/materiais"
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-foreground hover:bg-muted"
+            }`}
           >
             <FileText className="h-4 w-4" />
-            Dietas
-          </div>
+            Materiais
+          </Link>
           <Link
             href="/videos"
             className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -64,6 +83,32 @@ export default function VideosPage() {
           >
             <Video className="h-4 w-4" />
             {t("videos")}
+          </Link>
+          <Link
+            href="/financeiro"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+              pathname === "/financeiro"
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-foreground hover:bg-muted"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 18V6" />
+            </svg>
+            Financeiro
           </Link>
           <Link
             href="/perfil"
@@ -120,13 +165,17 @@ export default function VideosPage() {
                   <Users className="h-4 w-4" />
                   {t("patients")}
                 </Link>
-                <div
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed"
-                  title="Disponível na página de cada paciente"
+                <Link
+                  href="/materiais"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                    pathname === "/materiais"
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                      : "text-foreground hover:bg-muted"
+                  }`}
                 >
                   <FileText className="h-4 w-4" />
-                  Dietas
-                </div>
+                  Materiais
+                </Link>
                 <Link
                   href="/videos"
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -137,6 +186,32 @@ export default function VideosPage() {
                 >
                   <Video className="h-4 w-4" />
                   {t("videos")}
+                </Link>
+                <Link
+                  href="/financeiro"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                    pathname === "/financeiro"
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                    <path d="M12 18V6" />
+                  </svg>
+                  Financeiro
                 </Link>
                 <Link
                   href="/perfil"
@@ -160,10 +235,6 @@ export default function VideosPage() {
           </div>
 
           <ThemeToggle />
-
-          <Button variant="outline" className="ml-2">
-            Login
-          </Button>
         </header>
 
         {/* Main content */}
@@ -171,7 +242,8 @@ export default function VideosPage() {
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-semibold tracking-tight">{t("video.library")}</h1>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              {/* Modifique o botão de adicionar vídeo: */}
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleAddVideo}>
                 <Plus className="mr-2 h-4 w-4" />
                 {t("new.video")}
               </Button>

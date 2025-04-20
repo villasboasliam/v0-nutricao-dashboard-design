@@ -165,10 +165,6 @@ export default function DietasPage() {
               <h2 className="text-lg font-medium">Dietas</h2>
             </div>
           </div>
-
-          <Button variant="outline" className="ml-auto">
-            Login
-          </Button>
         </header>
 
         {/* Main content */}

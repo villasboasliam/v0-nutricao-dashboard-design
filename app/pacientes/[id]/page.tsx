@@ -2,7 +2,8 @@
 import { ArrowLeft, Camera, FileText, Home, LineChart, Menu, Upload, Users, Video } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +14,23 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useLanguage } from "@/contexts/language-context"
+
+// Importe o toast
+import { useToast } from "@/components/ui/use-toast"
+
+// Adicione imports para os componentes necessários
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Switch } from "@/components/ui/switch"
 
 // Dados fictícios de pacientes
 const patients = {
@@ -163,11 +181,75 @@ const patients = {
   },
 }
 
+// Dentro da função PatientDetailPage, adicione:
 export default function PatientDetailPage({ params }: { params: { id: string } }) {
   const patientId = params.id
-  const patient = patients[patientId as keyof typeof patients]
+  const [patient, setPatient] = useState(patients[patientId as keyof typeof patients])
   const pathname = usePathname()
   const { t } = useLanguage()
+  const { toast } = useToast()
+  const router = useRouter()
+
+  // Estado para controlar o status do paciente
+  const [isActive, setIsActive] = useState(patient?.status === "Ativo")
+
+  // Função para alternar o status do paciente
+  const togglePatientStatus = () => {
+    setIsActive(!isActive)
+
+    // Atualiza o status do paciente
+    if (patient) {
+      const updatedPatient = {
+        ...patient,
+        status: !isActive ? "Ativo" : "Inativo",
+      }
+      setPatient(updatedPatient)
+
+      toast({
+        title: `Paciente ${!isActive ? "ativado" : "inativado"} com sucesso!`,
+        description: `O paciente foi ${!isActive ? "ativado" : "inativado"}.`,
+        variant: "default",
+      })
+    }
+  }
+
+  // Função para excluir paciente
+  const handleDeletePatient = () => {
+    // Em um cenário real, faríamos uma chamada à API para excluir o paciente
+    // Simulação de exclusão de paciente
+    toast({
+      title: "Paciente removido com sucesso!",
+      description: "O paciente foi excluído permanentemente.",
+      variant: "default",
+    })
+
+    // Redireciona para a lista de pacientes após a exclusão
+    setTimeout(() => {
+      router.push("/pacientes")
+    }, 1500)
+  }
+
+  // Função para lidar com o envio de dieta
+  const handleSendDiet = () => {
+    // Simulação de envio de dieta
+    toast({
+      title: "Dieta enviada com sucesso!",
+      description: "A dieta foi enviada para o paciente.",
+      variant: "default",
+    })
+  }
+
+  // Função para lidar com o envio de foto
+  const handleSendPhoto = () => {
+    // Simulação de envio de foto
+    toast({
+      title: "Foto enviada com sucesso!",
+      description: "A foto foi adicionada ao histórico do paciente.",
+      variant: "default",
+    })
+  }
+
+  // Resto do código...
 
   if (!patient) {
     return (
@@ -213,13 +295,17 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
             <Users className="h-4 w-4" />
             {t("patients")}
           </Link>
-          <div
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed"
-            title="Disponível na página de cada paciente"
+          <Link
+            href="/materiais"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+              pathname === "/materiais"
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-foreground hover:bg-muted"
+            }`}
           >
             <FileText className="h-4 w-4" />
-            Dietas
-          </div>
+            Materiais
+          </Link>
           <Link
             href="/videos"
             className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -230,6 +316,32 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
           >
             <Video className="h-4 w-4" />
             {t("videos")}
+          </Link>
+          <Link
+            href="/financeiro"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+              pathname === "/financeiro"
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-foreground hover:bg-muted"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 18V6" />
+            </svg>
+            Financeiro
           </Link>
           <Link
             href="/perfil"
@@ -285,13 +397,17 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
                   <Users className="h-4 w-4" />
                   {t("patients")}
                 </Link>
-                <div
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed"
-                  title="Disponível na página de cada paciente"
+                <Link
+                  href="/materiais"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                    pathname === "/materiais"
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                      : "text-foreground hover:bg-muted"
+                  }`}
                 >
                   <FileText className="h-4 w-4" />
-                  Dietas
-                </div>
+                  Materiais
+                </Link>
                 <Link
                   href="/videos"
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -302,6 +418,32 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
                 >
                   <Video className="h-4 w-4" />
                   {t("videos")}
+                </Link>
+                <Link
+                  href="/financeiro"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                    pathname === "/financeiro"
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                    <path d="M12 18V6" />
+                  </svg>
+                  Financeiro
                 </Link>
                 <Link
                   href="/perfil"
@@ -325,10 +467,6 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
           </div>
 
           <ThemeToggle />
-
-          <Button variant="outline" className="ml-2">
-            Login
-          </Button>
         </header>
 
         <main className="flex-1 p-4 md:p-6">
@@ -381,9 +519,44 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
                       <p className="text-sm font-medium text-muted-foreground">Última Consulta</p>
                       <p>{patient.lastVisit}</p>
                     </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Valor da Consulta</p>
+                      <p>R$ 250,00</p>
+                      <Button variant="outline" size="sm" className="mt-2">
+                        Editar valor
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Após o card de informações pessoais, adicione: */}
+              <div className="flex flex-col md:flex-row gap-4 mt-4">
+                <div className="flex items-center space-x-2">
+                  <Switch id="patient-status" checked={isActive} onCheckedChange={togglePatientStatus} />
+                  <Label htmlFor="patient-status">{isActive ? "Paciente Ativo" : "Paciente Inativo"}</Label>
+                </div>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Excluir Paciente</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Isso excluirá permanentemente o paciente e todos os seus dados.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeletePatient} className="bg-red-600 hover:bg-red-700">
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
 
               <Card>
                 <CardHeader>
@@ -591,7 +764,11 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
                           </label>
                         </div>
                       </div>
-                      <Button className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white">
+                      {/* Modifique o botão de enviar dieta: */}
+                      <Button
+                        className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+                        onClick={handleSendDiet}
+                      >
                         Enviar Dieta
                       </Button>
                     </div>
@@ -661,7 +838,11 @@ export default function PatientDetailPage({ params }: { params: { id: string } }
                           </label>
                         </div>
                       </div>
-                      <Button className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white">
+                      {/* Modifique o botão de enviar foto: */}
+                      <Button
+                        className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+                        onClick={handleSendPhoto}
+                      >
                         Enviar Foto
                       </Button>
                     </div>

@@ -1,52 +1,28 @@
 "use client"
 
-import { useState } from "react"
-import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video } from "lucide-react"
+import { FileText, Home, LineChart, Menu, Plus, Upload, Users, Video } from "lucide-react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { useMobile } from "@/hooks/use-mobile"
-import { useLanguage } from "@/contexts/language-context"
-
-// Importe o toast
 import { useToast } from "@/components/ui/use-toast"
-import { ToastAction } from "@/components/ui/toast"
 
-// Dentro da função Dashboard, adicione:
-export default function Dashboard() {
-  const isMobile = useMobile()
+export default function MateriaisPage() {
   const pathname = usePathname()
-  const router = useRouter()
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const { t } = useLanguage()
-  const { toast } = useToast() // Adicione o hook useToast
+  const { toast } = useToast()
 
-  // Função para lidar com a adição de paciente
-  const handleAddPatient = () => {
-    setIsModalOpen(false)
-    // Simulação de adição de paciente
-    setTimeout(() => {
-      toast({
-        title: "Paciente adicionado com sucesso!",
-        description: "O novo paciente foi adicionado à sua lista.",
-        action: <ToastAction altText="Ver pacientes">Ver pacientes</ToastAction>,
-      })
-    }, 500)
+  // Função para lidar com o envio de material
+  const handleSendMaterial = () => {
+    toast({
+      title: "Material adicionado com sucesso!",
+      description: "O material foi disponibilizado para todos os pacientes.",
+      variant: "default",
+    })
   }
 
   return (
@@ -69,7 +45,7 @@ export default function Dashboard() {
             }`}
           >
             <Home className="h-4 w-4" />
-            {t("dashboard")}
+            Dashboard
           </Link>
           <Link
             href="/pacientes"
@@ -80,7 +56,7 @@ export default function Dashboard() {
             }`}
           >
             <Users className="h-4 w-4" />
-            {t("patients")}
+            Pacientes
           </Link>
           <Link
             href="/materiais"
@@ -102,7 +78,7 @@ export default function Dashboard() {
             }`}
           >
             <Video className="h-4 w-4" />
-            {t("videos")}
+            Vídeos
           </Link>
           <Link
             href="/financeiro"
@@ -139,7 +115,7 @@ export default function Dashboard() {
             }`}
           >
             <Users className="h-4 w-4" />
-            {t("profile")}
+            Perfil
           </Link>
         </nav>
       </aside>
@@ -172,7 +148,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <Home className="h-4 w-4" />
-                  {t("dashboard")}
+                  Dashboard
                 </Link>
                 <Link
                   href="/pacientes"
@@ -183,7 +159,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <Users className="h-4 w-4" />
-                  {t("patients")}
+                  Pacientes
                 </Link>
                 <Link
                   href="/materiais"
@@ -205,7 +181,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <Video className="h-4 w-4" />
-                  {t("videos")}
+                  Vídeos
                 </Link>
                 <Link
                   href="/financeiro"
@@ -242,7 +218,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <Users className="h-4 w-4" />
-                  {t("profile")}
+                  Perfil
                 </Link>
               </nav>
             </SheetContent>
@@ -250,7 +226,7 @@ export default function Dashboard() {
 
           <div className="w-full flex-1">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium">{t("dashboard")}</h2>
+              <h2 className="text-lg font-medium">Materiais</h2>
             </div>
           </div>
 
@@ -261,148 +237,154 @@ export default function Dashboard() {
         <main className="flex-1 p-4 md:p-6">
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard")}</h1>
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                    <Plus className="mr-2 h-4 w-4" />
-                    {t("add.patient")}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{t("add.patient")}</DialogTitle>
-                    <DialogDescription>
-                      Preencha os dados do novo paciente para adicioná-lo ao sistema.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Nome completo</Label>
-                      <Input id="name" placeholder="Nome do paciente" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="email@exemplo.com" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="phone">Celular</Label>
-                      <Input id="phone" placeholder="(00) 00000-0000" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleAddPatient}>
-                      Salvar
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Metric cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("total.patients")}</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">127</div>
-                  <p className="text-xs text-muted-foreground">+5 no último mês</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("active.patients")}</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">84</div>
-                  <p className="text-xs text-muted-foreground">+12% que semana passada</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("sent.diets")}</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">243</div>
-                  <p className="text-xs text-muted-foreground">+18 esta semana</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("app.access.rate")}</CardTitle>
-                  <LineChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">78%</div>
-                  <p className="text-xs text-muted-foreground">+5% que mês passado</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="flex justify-end mt-4">
-              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                <Link href="/pacientes">{t("view.all.patients")}</Link>
+              <h1 className="text-2xl font-semibold tracking-tight">Biblioteca de Materiais</h1>
+              <Button className="bg-indigo-600 hover:bg-indigo-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Material
               </Button>
             </div>
 
-            {/* Chart */}
             <Card>
               <CardHeader>
-                <CardTitle>{t("app.access")}</CardTitle>
-                <CardDescription>{t("daily.access")}</CardDescription>
+                <CardTitle>Adicionar Novo Material</CardTitle>
+                <CardDescription>Faça upload de PDFs para compartilhar com todos os pacientes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
-                  <AccessChart />
+                <div className="flex flex-col gap-4">
+                  <div className="grid w-full gap-2">
+                    <Label htmlFor="material-name">Nome do Material</Label>
+                    <Input id="material-name" placeholder="Ex: Guia de Alimentação Saudável" />
+                  </div>
+                  <div className="grid w-full gap-2">
+                    <Label htmlFor="material-description">Descrição</Label>
+                    <Input id="material-description" placeholder="Breve descrição do material" />
+                  </div>
+                  <div className="grid w-full gap-2">
+                    <Label htmlFor="material-category">Categoria</Label>
+                    <Input id="material-category" placeholder="Ex: Nutrição, Receitas, Educação" />
+                  </div>
+                  <div className="grid w-full gap-2">
+                    <Label htmlFor="pdf-upload">Arquivo PDF</Label>
+                    <div className="flex items-center justify-center w-full">
+                      <label
+                        htmlFor="pdf-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
+                      >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                          <p className="mb-2 text-sm text-muted-foreground">
+                            Clique para fazer upload ou arraste o arquivo
+                          </p>
+                          <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
+                        </div>
+                        <input id="pdf-upload" type="file" accept=".pdf" className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+                    onClick={handleSendMaterial}
+                  >
+                    Enviar Material
+                  </Button>
                 </div>
               </CardContent>
             </Card>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Guia de Alimentação Saudável</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Guia completo com orientações para uma alimentação equilibrada e saudável.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm">
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Receitas Low Carb</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Coletânea de receitas com baixo teor de carboidratos para dietas específicas.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm">
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Guia de Suplementação</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Informações sobre suplementos nutricionais e suas aplicações.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm">
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Tabela de Calorias</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Tabela completa com valores calóricos dos principais alimentos.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm">
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Guia de Hidratação</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Orientações sobre a importância da hidratação e como calcular a ingestão ideal.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm">
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Nutrição para Atletas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Guia especializado para alimentação de atletas e praticantes de atividades físicas.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm">
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </main>
-      </div>
-    </div>
-  )
-}
-
-// Modifique a função AccessChart para que as barras ocupem mais espaço vertical e use valores absolutos
-function AccessChart() {
-  const days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
-  // Alterando para valores absolutos em vez de porcentagens
-  const data = [125, 178, 232, 175, 289, 157, 193]
-  const maxValue = Math.max(...data)
-  const minValue = Math.min(...data) * 0.8 // Usamos 80% do valor mínimo como base
-  const yAxisMax = maxValue + (maxValue - minValue) * 0.2 // Topo é 20% acima da diferença
-  const minWeight = minValue
-
-  return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex flex-1 items-end gap-2">
-        {data.map((value, i) => (
-          <div key={i} className="relative flex w-full flex-col items-center">
-            <div className="absolute -top-6 text-xs font-medium">{value}</div>
-            <div
-              className="w-full rounded-t-sm bg-indigo-500 shadow-md dark:bg-indigo-600"
-              style={{
-                height: `${((value - minValue) / (yAxisMax - minWeight)) * 100}%`,
-                minHeight: "20px",
-              }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex h-6 items-center justify-between mt-2">
-        {days.map((day, i) => (
-          <div key={i} className="text-xs font-medium">
-            {day}
-          </div>
-        ))}
       </div>
     </div>
   )

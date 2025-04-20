@@ -133,13 +133,17 @@ export default function PatientsPage() {
             <Users className="h-4 w-4" />
             {t("patients")}
           </Link>
-          <div
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed"
-            title="Disponível na página de cada paciente"
+          <Link
+            href="/materiais"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+              pathname === "/materiais"
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-foreground hover:bg-muted"
+            }`}
           >
             <FileText className="h-4 w-4" />
-            Dietas
-          </div>
+            Materiais
+          </Link>
           <Link
             href="/videos"
             className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -150,6 +154,32 @@ export default function PatientsPage() {
           >
             <Video className="h-4 w-4" />
             {t("videos")}
+          </Link>
+          <Link
+            href="/financeiro"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+              pathname === "/financeiro"
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-foreground hover:bg-muted"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+              <path d="M12 18V6" />
+            </svg>
+            Financeiro
           </Link>
           <Link
             href="/perfil"
@@ -205,13 +235,17 @@ export default function PatientsPage() {
                   <Users className="h-4 w-4" />
                   {t("patients")}
                 </Link>
-                <div
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground cursor-not-allowed"
-                  title="Disponível na página de cada paciente"
+                <Link
+                  href="/materiais"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                    pathname === "/materiais"
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                      : "text-foreground hover:bg-muted"
+                  }`}
                 >
                   <FileText className="h-4 w-4" />
-                  Dietas
-                </div>
+                  Materiais
+                </Link>
                 <Link
                   href="/videos"
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -222,6 +256,32 @@ export default function PatientsPage() {
                 >
                   <Video className="h-4 w-4" />
                   {t("videos")}
+                </Link>
+                <Link
+                  href="/financeiro"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                    pathname === "/financeiro"
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                    <path d="M12 18V6" />
+                  </svg>
+                  Financeiro
                 </Link>
                 <Link
                   href="/perfil"
@@ -254,10 +314,6 @@ export default function PatientsPage() {
           </div>
 
           <ThemeToggle />
-
-          <Button variant="outline" className="ml-2">
-            Login
-          </Button>
         </header>
 
         <main className="flex-1 p-4 md:p-6">

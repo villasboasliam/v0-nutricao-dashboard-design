@@ -166,10 +166,6 @@ export default function EvolucaoPage() {
               <h2 className="text-lg font-medium">Evolução Física</h2>
             </div>
           </div>
-
-          <Button variant="outline" className="ml-auto">
-            Login
-          </Button>
         </header>
 
         {/* Main content */}
