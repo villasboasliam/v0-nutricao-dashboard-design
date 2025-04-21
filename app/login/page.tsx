@@ -1,11 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Eye, EyeOff, LineChart } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,10 +23,8 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulação de login - em um cenário real, você faria uma chamada à API
     setTimeout(() => {
       setIsLoading(false)
-      // Redireciona para o dashboard após o login
       router.push("/")
     }, 1500)
   }
@@ -96,11 +93,16 @@ export default function LoginPage() {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
-            <div className="mt-4 text-center text-sm">
-              <p>Ou continue com</p>
-              <div className="mt-3 flex gap-2">
-                <Button variant="outline" className="w-full">
-                  Google
+            <div className="mt-6 text-center text-sm">
+              <p className="mb-3">Ou continue com</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => signIn("google", { callbackUrl: "/pacientes" })}
+                >
+                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5 mr-2" />
+                  Entrar com Google
                 </Button>
                 <Button variant="outline" className="w-full">
                   Apple

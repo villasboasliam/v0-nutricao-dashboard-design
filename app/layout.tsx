@@ -1,15 +1,13 @@
-import type React from "react"
 import "@/app/globals.css"
 import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import { LanguageProvider } from "@/contexts/language-context"
+import { Providers } from "@/app/providers"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "NutriDash",
   description: "Dashboard para nutricionistas",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
 }
 
 export default function RootLayout({
@@ -20,9 +18,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <LanguageProvider>{children}</LanguageProvider>
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

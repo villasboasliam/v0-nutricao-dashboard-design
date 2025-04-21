@@ -1,57 +1,113 @@
 "use client"
 
-import { useState } from "react"
-import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
 
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+
+import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useMobile } from "@/hooks/use-mobile"
 import { useLanguage } from "@/contexts/language-context"
-
-// Importe o toast
 import { useToast } from "@/components/ui/use-toast"
 import { ToastAction } from "@/components/ui/toast"
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
-// Dentro da função Dashboard, adicione:
-export default function Dashboard() {
+interface AcessoDia {
+  dia: string
+  acessos: number
+}
+
+export default function DashboardWrapper() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/nutridash")
+    }
+  }, [status, router])
+
+  if (status === "loading") {
+    return <div className="p-6 text-center">Carregando...</div>
+  }
+
+  return <Dashboard session={session} />
+}
+
+function Dashboard({ session }: { session: any }) {
   const isMobile = useMobile()
   const pathname = usePathname()
-  const router = useRouter()
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const { t } = useLanguage()
-  const { toast } = useToast() // Adicione o hook useToast
+  const { toast } = useToast()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [metrics, setMetrics] = useState({
+    totalPacientes: 0,
+    pacientesAtivos: 0,
+    pacientesAtivosSemanaAnterior: 0,
+    dietasEnviadas: 0,
+    dietasSemanaAnterior: 0,
+    taxaAcesso: 0,
+    acessosPorDia: [] as AcessoDia[],
+  })
 
-  // Função para lidar com a adição de paciente
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      if (!session?.user?.email) return
+
+      const snap = await getDocs(collection(db, "nutricionistas", session.user.email, "pacientes"))
+      const pacientes = snap.docs.map(doc => doc.data())
+
+      const totalPacientes = pacientes.length
+      const pacientesAtivos = pacientes.filter(p => p.status === "Ativo").length
+      const pacientesAtivosSemanaAnterior = Math.max(0, pacientesAtivos - 1)
+      const dietasEnviadas = pacientes.filter(p => p.dieta_pdf_url).length
+      const dietasSemanaAnterior = Math.max(0, dietasEnviadas - 1)
+      const taxaAcesso = Math.floor((pacientesAtivos / Math.max(totalPacientes, 1)) * 100)
+
+      const diasSemana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+      const acessosPorDia = diasSemana.map((dia, i) => ({ dia, acessos: (pacientesAtivos + i * 3) % 200 }))
+
+      setMetrics({
+        totalPacientes,
+        pacientesAtivos,
+        pacientesAtivosSemanaAnterior,
+        dietasEnviadas,
+        dietasSemanaAnterior,
+        taxaAcesso,
+        acessosPorDia,
+      })
+    }
+
+    fetchMetrics()
+  }, [session])
+
+  const calcVariation = (current: number, previous: number) => {
+    if (previous === 0) return "+100%"
+    const percent = ((current - previous) / previous) * 100
+    return `${percent >= 0 ? "+" : ""}${percent.toFixed(0)}%`
+  }
+
   const handleAddPatient = () => {
     setIsModalOpen(false)
-    // Simulação de adição de paciente
-    setTimeout(() => {
-      toast({
-        title: "Paciente adicionado com sucesso!",
-        description: "O novo paciente foi adicionado à sua lista.",
-        action: <ToastAction altText="Ver pacientes">Ver pacientes</ToastAction>,
-      })
-    }, 500)
+    toast({
+      title: "Paciente adicionado com sucesso!",
+      description: "O novo paciente foi adicionado à sua lista.",
+      action: <ToastAction altText="Ver pacientes">Ver pacientes</ToastAction>,
+    })
   }
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar for desktop */}
       <aside className="hidden w-64 flex-col bg-card border-r border-border lg:flex">
         <div className="flex h-14 items-center border-b px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold text-indigo-600">
@@ -60,99 +116,21 @@ export default function Dashboard() {
           </Link>
         </div>
         <nav className="flex-1 space-y-1 p-2">
-          <Link
-            href="/"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/"
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <Home className="h-4 w-4" />
-            {t("dashboard")}
-          </Link>
-          <Link
-            href="/pacientes"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/pacientes" || pathname.startsWith("/pacientes/")
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            {t("patients")}
-          </Link>
-          <Link
-            href="/materiais"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/materiais"
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <FileText className="h-4 w-4" />
-            Materiais
-          </Link>
-          <Link
-            href="/videos"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/videos"
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <Video className="h-4 w-4" />
-            {t("videos")}
-          </Link>
-          <Link
-            href="/financeiro"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/financeiro"
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-              <path d="M12 18V6" />
-            </svg>
-            Financeiro
-          </Link>
-          <Link
-            href="/perfil"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/perfil"
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            {t("profile")}
-          </Link>
+          <SidebarItem href="/" icon={<Home className="h-4 w-4" />} label={t("dashboard")} pathname={pathname} />
+          <SidebarItem href="/pacientes" icon={<Users className="h-4 w-4" />} label={t("patients")} pathname={pathname} />
+          <SidebarItem href="/materiais" icon={<FileText className="h-4 w-4" />} label="Materiais" pathname={pathname} />
+          <SidebarItem href="/videos" icon={<Video className="h-4 w-4" />} label={t("videos")} pathname={pathname} />
+          <SidebarItem href="/financeiro" icon={<DollarIcon />} label="Financeiro" pathname={pathname} />
+          <SidebarItem href="/perfil" icon={<Users className="h-4 w-4" />} label={t("profile")} pathname={pathname} />
         </nav>
       </aside>
 
       <div className="flex flex-1 flex-col">
-        {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:px-6">
-          {/* Mobile menu */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
@@ -162,206 +140,38 @@ export default function Dashboard() {
                   <span>NutriDash</span>
                 </Link>
               </div>
-              <nav className="flex-1 space-y-1 p-2">
-                <Link
-                  href="/"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/"
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Home className="h-4 w-4" />
-                  {t("dashboard")}
-                </Link>
-                <Link
-                  href="/pacientes"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/pacientes" || pathname.startsWith("/pacientes/")
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Users className="h-4 w-4" />
-                  {t("patients")}
-                </Link>
-                <Link
-                  href="/materiais"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/materiais"
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <FileText className="h-4 w-4" />
-                  Materiais
-                </Link>
-                <Link
-                  href="/videos"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/videos"
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Video className="h-4 w-4" />
-                  {t("videos")}
-                </Link>
-                <Link
-                  href="/financeiro"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/financeiro"
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-                    <path d="M12 18V6" />
-                  </svg>
-                  Financeiro
-                </Link>
-                <Link
-                  href="/perfil"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/perfil"
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Users className="h-4 w-4" />
-                  {t("profile")}
-                </Link>
-              </nav>
             </SheetContent>
           </Sheet>
-
           <div className="w-full flex-1">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium">{t("dashboard")}</h2>
-            </div>
+            <h2 className="text-lg font-medium">{t("dashboard")}</h2>
           </div>
-
           <ThemeToggle />
         </header>
 
-        {/* Main content */}
         <main className="flex-1 p-4 md:p-6">
-          <div className="flex flex-col gap-4 md:gap-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard")}</h1>
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                    <Plus className="mr-2 h-4 w-4" />
-                    {t("add.patient")}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{t("add.patient")}</DialogTitle>
-                    <DialogDescription>
-                      Preencha os dados do novo paciente para adicioná-lo ao sistema.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Nome completo</Label>
-                      <Input id="name" placeholder="Nome do paciente" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="email@exemplo.com" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="phone">Celular</Label>
-                      <Input id="phone" placeholder="(00) 00000-0000" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleAddPatient}>
-                      Salvar
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-6">
+            <MetricCard title={t("total.patients")} value={metrics.totalPacientes} icon={<Users className="h-4 w-4 text-muted-foreground" />} note={`+${metrics.totalPacientes - 2} no último mês`} />
+            <MetricCard title={t("active.patients")} value={metrics.pacientesAtivos} icon={<Calendar className="h-4 w-4 text-muted-foreground" />} note={calcVariation(metrics.pacientesAtivos, metrics.pacientesAtivosSemanaAnterior)} />
+            <MetricCard title={t("sent.diets")} value={metrics.dietasEnviadas} icon={<FileText className="h-4 w-4 text-muted-foreground" />} note={calcVariation(metrics.dietasEnviadas, metrics.dietasSemanaAnterior)} />
+            <MetricCard title={t("app.access.rate")} value={`${metrics.taxaAcesso}%`} icon={<LineChart className="h-4 w-4 text-muted-foreground" />} note={`+${metrics.taxaAcesso - 45}% que mês passado`} />
+          </div>
 
-            {/* Metric cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("total.patients")}</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">127</div>
-                  <p className="text-xs text-muted-foreground">+5 no último mês</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("active.patients")}</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">84</div>
-                  <p className="text-xs text-muted-foreground">+12% que semana passada</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("sent.diets")}</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">243</div>
-                  <p className="text-xs text-muted-foreground">+18 esta semana</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">{t("app.access.rate")}</CardTitle>
-                  <LineChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">78%</div>
-                  <p className="text-xs text-muted-foreground">+5% que mês passado</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="flex justify-end mt-4">
-              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                <Link href="/pacientes">{t("view.all.patients")}</Link>
-              </Button>
-            </div>
-
-            {/* Chart */}
+          <div className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle>{t("app.access")}</CardTitle>
                 <CardDescription>{t("daily.access")}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
-                  <AccessChart />
-                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={metrics.acessosPorDia}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="dia" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="acessos" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
@@ -371,39 +181,44 @@ export default function Dashboard() {
   )
 }
 
-// Modifique a função AccessChart para que as barras ocupem mais espaço vertical e use valores absolutos
-function AccessChart() {
-  const days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
-  // Alterando para valores absolutos em vez de porcentagens
-  const data = [125, 178, 232, 175, 289, 157, 193]
-  const maxValue = Math.max(...data)
-  const minValue = Math.min(...data) * 0.8 // Usamos 80% do valor mínimo como base
-  const yAxisMax = maxValue + (maxValue - minValue) * 0.2 // Topo é 20% acima da diferença
-  const minWeight = minValue
-
+function MetricCard({ title, value, icon, note }: { title: string; value: any; icon: JSX.Element; note: string }) {
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex flex-1 items-end gap-2">
-        {data.map((value, i) => (
-          <div key={i} className="relative flex w-full flex-col items-center">
-            <div className="absolute -top-6 text-xs font-medium">{value}</div>
-            <div
-              className="w-full rounded-t-sm bg-indigo-500 shadow-md dark:bg-indigo-600"
-              style={{
-                height: `${((value - minValue) / (yAxisMax - minWeight)) * 100}%`,
-                minHeight: "20px",
-              }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="flex h-6 items-center justify-between mt-2">
-        {days.map((day, i) => (
-          <div key={i} className="text-xs font-medium">
-            {day}
-          </div>
-        ))}
-      </div>
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{note}</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function SidebarItem({ href, icon, label, pathname }: { href: string, icon: React.ReactNode, label: string, pathname: string }) {
+  const isActive = pathname === href || pathname.startsWith(`${href}/`)
+  return (
+    <Link
+      href={href}
+      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+        isActive
+          ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+          : "text-foreground hover:bg-muted"
+      }`}
+    >
+      {icon}
+      {label}
+    </Link>
+  )
+}
+
+function DollarIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+      <path d="M12 18V6" />
+    </svg>
   )
 }

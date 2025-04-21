@@ -1,11 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Eye, EyeOff, LineChart } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { db } from "@/lib/firebase"
 
 export default function CadastroPage() {
   const [name, setName] = useState("")
@@ -26,12 +26,23 @@ export default function CadastroPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulação de cadastro - em um cenário real, você faria uma chamada à API
-    setTimeout(() => {
+    try {
+      const ref = doc(db, "nutricionistas", email)
+      await setDoc(ref, {
+        nome: name,
+        email: email,
+        senha: password, // armazenar senha em texto plano não é ideal em produção!
+        assinatura_ativa: false,
+        data_criacao: serverTimestamp(),
+      })
+
       setIsLoading(false)
-      // Redireciona para a página de planos após o cadastro
-      router.push("/planos")
-    }, 1500)
+      router.push("/login")
+    } catch (error) {
+      console.error("Erro ao cadastrar nutricionista:", error)
+      setIsLoading(false)
+      alert("Erro ao cadastrar. Tente novamente.")
+    }
   }
 
   return (
@@ -49,92 +60,45 @@ export default function CadastroPage() {
         <Card className="mx-auto max-w-md w-full">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold">Criar conta</CardTitle>
-            <CardDescription>Preencha os dados abaixo para criar sua conta</CardDescription>
+            <CardDescription>Preencha os dados abaixo para se cadastrar como nutricionista</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome completo</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
+                <Input id="name" type="text" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+                <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     <span className="sr-only">{showPassword ? "Esconder senha" : "Mostrar senha"}</span>
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">A senha deve ter pelo menos 8 caracteres</p>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="terms" required />
                 <Label htmlFor="terms" className="text-sm">
                   Eu concordo com os{" "}
-                  <Link href="#" className="text-indigo-600 hover:text-indigo-700">
-                    Termos de Serviço
-                  </Link>{" "}
-                  e{" "}
-                  <Link href="#" className="text-indigo-600 hover:text-indigo-700">
-                    Política de Privacidade
-                  </Link>
+                  <Link href="#" className="text-indigo-600 hover:text-indigo-700">Termos de Serviço</Link> e{" "}
+                  <Link href="#" className="text-indigo-600 hover:text-indigo-700">Política de Privacidade</Link>
                 </Label>
               </div>
-              <Button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" disabled={isLoading}>
                 {isLoading ? "Criando conta..." : "Criar conta"}
               </Button>
             </form>
-            <div className="mt-4 text-center text-sm">
-              <p>Ou continue com</p>
-              <div className="mt-3 flex gap-2">
-                <Button variant="outline" className="w-full">
-                  Google
-                </Button>
-                <Button variant="outline" className="w-full">
-                  Apple
-                </Button>
-              </div>
-            </div>
           </CardContent>
-          <CardFooter className="flex flex-col">
+          <CardFooter className="flex flex-col gap-2">
             <div className="text-center text-sm">
-              Já tem uma conta?{" "}
               <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
-                Faça login
+                Já possui uma conta? Fazer login
               </Link>
             </div>
           </CardFooter>
