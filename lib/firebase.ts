@@ -20,3 +20,4 @@ const app = initializeApp(firebaseConfig)
 // Exporte Firestore e Storage para uso
 export const db = getFirestore(app)
 export const storage = getStorage(app)
+

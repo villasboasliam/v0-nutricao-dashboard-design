@@ -14,6 +14,9 @@ import { ArrowLeft, Camera, FileText, Home, LineChart, Menu, Upload, Users, Vide
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+import { arrayUnion } from "firebase/firestore";
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -39,13 +42,22 @@ import { useParams } from "next/navigation"
 export default function PatientDetailPage() {
   const params = useParams()
   const id = params?.id as string
-
+  const [selectedPDF, setSelectedPDF] = useState<File | null>(null)
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
   const { t } = useLanguage()
   const { toast } = useToast()
-
+  const uploadPDF = async (file: File, patientId: string) => {
+    console.log("Iniciando upload:", file.name); // Adicione isso
+    if (!file) return null;
+  
+    const storageRef = ref(storage, `pacientes/${patientId}/dietas/${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+  
+    return downloadURL; // Retorna a URL do arquivo
+  };
   const [patient, setPatient] = useState<any | null>(null)
   const [isActive, setIsActive] = useState(true)
 
@@ -62,6 +74,38 @@ export default function PatientDetailPage() {
     birthdate: "",
     valorConsulta: "",
   })
+  const handleUploadPDF = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!session?.user?.email) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Usuário não autenticado. Tente novamente.",
+      });
+      return;
+    }
+
+
+  const file = selectedPDF;
+
+  if (!file) {
+    toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um arquivo PDF." });
+    return;
+  }
+
+  try {
+    const downloadURL = await uploadPDF(file, id);
+    toast({ title: "Upload concluído", description: "O arquivo foi enviado com sucesso." });
+
+    // Salvar a URL no Firestore
+    const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+    await updateDoc(ref, {
+      dietas: arrayUnion({ nome: file.name, url: downloadURL }),
+    });
+  } catch (error) {
+    console.error("Erro ao fazer upload:", error);
+    toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar o arquivo." });
+  }
+};
 
   const [editMetrics, setEditMetrics] = useState({
     peso: 0,
@@ -165,7 +209,7 @@ export default function PatientDetailPage() {
           <SidebarItem href="/pacientes" icon={<Users className="h-4 w-4" />} label={t("patients")} pathname={pathname} />
           <SidebarItem href="/materiais" icon={<FileText className="h-4 w-4" />} label="Materiais" pathname={pathname} />
           <SidebarItem href="/videos" icon={<Video className="h-4 w-4" />} label={t("videos")} pathname={pathname} />
-          <SidebarItem href="/financeiro" icon={<DollarIcon />} label="Financeiro" pathname={pathname} />
+          <SidebarItem href="/financeiro" icon={<LineChart className="h-4 w-4" />} label="Financeiro" pathname={pathname} />
           <SidebarItem href="/perfil" icon={<Users className="h-4 w-4" />} label={t("profile")} pathname={pathname} />
         </nav>
       </aside>
@@ -404,12 +448,13 @@ export default function PatientDetailPage() {
 
   {/* Aba Dietas */}
   <TabsContent value="dietas" className="mt-4">
-    <Card>
-      <CardHeader>
-        <CardTitle>Enviar Nova Dieta</CardTitle>
-        <CardDescription>Faça upload de dietas em PDF para o paciente</CardDescription>
-      </CardHeader>
-      <CardContent>
+  <Card>
+    <CardHeader>
+      <CardTitle>Enviar Nova Dieta</CardTitle>
+      <CardDescription>Faça upload de dietas em PDF para o paciente</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <form onSubmit={handleUploadPDF}>
         <div className="flex flex-col gap-4">
           <div className="grid w-full gap-2">
             <Label>Nome da Dieta</Label>
@@ -433,17 +478,33 @@ export default function PatientDetailPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
                 </div>
-                <input id="pdf-upload" type="file" accept=".pdf" className="hidden" />
+                <input
+                  id="pdf-upload"
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setSelectedPDF(file);
+                  }}
+                />
+                {selectedPDF && (
+                  <div className="mt-2 text-sm flex items-center gap-2 text-green-600">
+                    <Upload className="w-4 h-4" />
+                    <span>{selectedPDF.name}</span>
+                  </div>
+                )}
               </label>
             </div>
           </div>
-          <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+          <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
             Enviar Dieta
           </Button>
         </div>
-      </CardContent>
-    </Card>
-  </TabsContent>
+      </form>
+    </CardContent>
+  </Card>
+</TabsContent>
 
   {/* Aba Fotos */}
   <TabsContent value="fotos" className="mt-4">
@@ -480,9 +541,6 @@ export default function PatientDetailPage() {
               </label>
             </div>
           </div>
-          <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-            Enviar Foto
-          </Button>
         </div>
       </CardContent>
     </Card>

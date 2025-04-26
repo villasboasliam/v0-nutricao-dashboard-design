@@ -52,6 +52,15 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+
+        // 🎨 Tons mais suaves para dark mode
+        dark: {
+          background: "#1a1a1a",
+          card: "#232323",
+          border: "#2e2e2e",
+          input: "#333333",
+        },
+
         indigo: {
           50: "#eef2ff",
           100: "#e0e7ff",
