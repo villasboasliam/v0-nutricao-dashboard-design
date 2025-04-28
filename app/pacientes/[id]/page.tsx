@@ -8,9 +8,7 @@ import Image from "next/image"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { db } from "@/lib/firebase"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
-
 import { ArrowLeft, Camera, FileText, Home, LineChart, Menu, Upload, Users, Video } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -36,36 +34,32 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Switch } from "@/components/ui/switch"
-
 import { useParams } from "next/navigation"
 
 export default function PatientDetailPage() {
   const params = useParams()
   const id = params?.id as string
-  const [selectedPDF, setSelectedPDF] = useState<File | null>(null)
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
   const { t } = useLanguage()
   const { toast } = useToast()
-  const uploadPDF = async (file: File, patientId: string) => {
-    console.log("Iniciando upload:", file.name); // Adicione isso
-    if (!file) return null;
-  
-    const storageRef = ref(storage, `pacientes/${patientId}/dietas/${file.name}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-  
-    return downloadURL; // Retorna a URL do arquivo
-  };
+
+  const [selectedPDF, setSelectedPDF] = useState<File | null>(null)
   const [patient, setPatient] = useState<any | null>(null)
   const [isActive, setIsActive] = useState(true)
 
-  // Edit Personal Info
+  const [dataNovaMetrica, setDataNovaMetrica] = useState("")
+  const [pesoNovo, setPesoNovo] = useState("")
+  const [gorduraNova, setGorduraNova] = useState("")
+  const [massaMagraNova, setMassaMagraNova] = useState("")
+  const [cinturaNova, setCinturaNova] = useState("")
+  const [quadrilNovo, setQuadrilNovo] = useState("")
+  const [toraxNovo, setToraxNovo] = useState("")
+  const [bracoNovo, setBracoNovo] = useState("")
+
   const [editInfoOpen, setEditInfoOpen] = useState(false)
   const [editMetricsOpen, setEditMetricsOpen] = useState(false)
-  
-
 
   const [editData, setEditData] = useState({
     name: "",
@@ -74,38 +68,6 @@ export default function PatientDetailPage() {
     birthdate: "",
     valorConsulta: "",
   })
-  const handleUploadPDF = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!session?.user?.email) {
-      toast({
-        title: "Erro de autenticação",
-        description: "Usuário não autenticado. Tente novamente.",
-      });
-      return;
-    }
-
-
-  const file = selectedPDF;
-
-  if (!file) {
-    toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um arquivo PDF." });
-    return;
-  }
-
-  try {
-    const downloadURL = await uploadPDF(file, id);
-    toast({ title: "Upload concluído", description: "O arquivo foi enviado com sucesso." });
-
-    // Salvar a URL no Firestore
-    const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
-    await updateDoc(ref, {
-      dietas: arrayUnion({ nome: file.name, url: downloadURL }),
-    });
-  } catch (error) {
-    console.error("Erro ao fazer upload:", error);
-    toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar o arquivo." });
-  }
-};
 
   const [editMetrics, setEditMetrics] = useState({
     peso: 0,
@@ -115,6 +77,37 @@ export default function PatientDetailPage() {
     cintura: 0,
   })
 
+  const uploadPDF = async (file: File, patientId: string) => {
+    if (!file) return null;
+    const storageRef = ref(storage, `pacientes/${patientId}/dietas/${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  }
+  const handleUploadPDF = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!session?.user?.email) {
+      toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
+      return;
+    }
+    const file = selectedPDF;
+    if (!file) {
+      toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um arquivo PDF." });
+      return;
+    }
+    try {
+      const downloadURL = await uploadPDF(file, id);
+      toast({ title: "Upload concluído", description: "O arquivo foi enviado com sucesso." });
+      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+      await updateDoc(ref, {
+        dietas: arrayUnion({ nome: file.name, url: downloadURL }),
+      });
+    } catch (error) {
+      console.error("Erro ao fazer upload:", error);
+      toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar o arquivo." });
+    }
+  }
+
   useEffect(() => {
     const fetchPatient = async () => {
       if (!session?.user?.email) return
@@ -122,7 +115,10 @@ export default function PatientDetailPage() {
       const snap = await getDoc(ref)
       if (snap.exists()) {
         const data = snap.data()
-        setPatient(data)
+        setPatient({
+          ...data,
+          historicoMetricas: data.historicoMetricas || [],
+        });
         setIsActive(data.status === "Ativo")
         setEditData({
           name: data.nome || "",
@@ -177,13 +173,14 @@ export default function PatientDetailPage() {
   const handleDeletePatient = async () => {
     if (!session?.user?.email) return
     const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id)
-    await updateDoc(ref, { status: "Inativo" }) // ou deleteDoc(ref) se quiser apagar mesmo
+    await updateDoc(ref, { status: "Inativo" })
     toast({
       title: "Paciente excluído",
       description: "O paciente foi removido do painel.",
     })
     router.push("/pacientes")
   }
+
   const togglePatientStatus = async () => {
     if (!session?.user?.email) return
     const novoStatus = isActive ? "Inativo" : "Ativo"
@@ -194,7 +191,60 @@ export default function PatientDetailPage() {
       title: `Paciente ${novoStatus === "Ativo" ? "ativado" : "inativado"}`,
     })
   }
-  
+
+  const salvarNovaMetrica = async () => {
+    if (!session?.user?.email || !patient) return;
+
+    const novaMetrica = {
+      data: dataNovaMetrica,
+      peso: Number(pesoNovo),
+      gordura: Number(gorduraNova),
+      massaMagra: Number(massaMagraNova),
+      cintura: Number(cinturaNova),
+    };
+
+    const refPaciente = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+    const historicoAtualizado = [...(patient.historicoMetricas || []), novaMetrica];
+
+    await updateDoc(refPaciente, {
+      historicoMetricas: historicoAtualizado,
+    });
+
+    setPatient((prev: any) => ({
+      ...prev,
+      historicoMetricas: historicoAtualizado,
+    }));
+
+    setDataNovaMetrica("");
+    setPesoNovo("");
+    setGorduraNova("");
+    setMassaMagraNova("");
+    setCinturaNova("");
+
+    toast({ title: "Nova métrica adicionada com sucesso" });
+  };
+
+  const excluirMetrica = async (data: string) => {
+    if (!session?.user?.email || !patient) return;
+
+    const historicoAtualizado = (patient.historicoMetricas || []).filter(
+      (metrica: any) => metrica.data !== data
+    );
+
+    const refPaciente = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+
+    await updateDoc(refPaciente, {
+      historicoMetricas: historicoAtualizado,
+    });
+
+    setPatient((prev: any) => ({
+      ...prev,
+      historicoMetricas: historicoAtualizado,
+    }));
+
+    toast({ title: "Métrica excluída com sucesso" });
+  };
+
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 flex-col bg-card border-r border-border lg:flex fixed h-full">
@@ -216,7 +266,7 @@ export default function PatientDetailPage() {
 
       <div className="flex flex-col flex-1 lg:ml-64">
         <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:px-6">
-          <Sheet>
+        <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
@@ -249,17 +299,17 @@ export default function PatientDetailPage() {
             </Button>
             <h1 className="text-2xl font-semibold tracking-tight">{patient?.nome}</h1>
           </div>
-            
+
           <div className="flex items-center gap-2 mb-6">
-  <Switch
-    id="patient-status"
-    checked={isActive}
-    onCheckedChange={togglePatientStatus}
-  />
-  <Label htmlFor="patient-status">
-    {isActive ? "Paciente Ativo" : "Paciente Inativo"}
-  </Label>
-</div>
+            <Switch
+              id="patient-status"
+              checked={isActive}
+              onCheckedChange={togglePatientStatus}
+            />
+            <Label htmlFor="patient-status">
+              {isActive ? "Paciente Ativo" : "Paciente Inativo"}
+            </Label>
+          </div>
 
           {/* Informações Pessoais */}
           <Card className="mb-6">
@@ -267,7 +317,10 @@ export default function PatientDetailPage() {
               <div>
                 <CardTitle>Informações Pessoais</CardTitle>
               </div>
-              <Button onClick={() => setEditInfoOpen(true)} className="bg-indigo-600 text-white hover:bg-indigo-700">
+              <Button
+                onClick={() => setEditInfoOpen(true)}
+                className="bg-indigo-600 text-white hover:bg-indigo-700"
+              >
                 Editar
               </Button>
             </CardHeader>
@@ -309,46 +362,17 @@ export default function PatientDetailPage() {
                 ))}
               </div>
               <DialogFooter className="mt-4">
-                <Button onClick={handleSaveInfo} className="bg-indigo-600 text-white hover:bg-indigo-700">
+                <Button
+                  onClick={handleSaveInfo}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                >
                   Salvar
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
           {/* Métricas Atuais */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Métricas Atuais</CardTitle>
-              </div>
-              <Button onClick={() => setEditMetricsOpen(true)} className="bg-indigo-600 text-white hover:bg-indigo-700">
-                Editar
-              </Button>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Peso</p>
-                <p>{patient?.peso_atual} kg</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Altura</p>
-                <p>{patient?.altura} cm</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">% Gordura</p>
-                <p>{patient?.gordura} %</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">% Massa Magra</p>
-                <p>{patient?.massa_magra} %</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Cintura</p>
-                <p>{patient?.cintura} cm</p>
-              </div>
-            </CardContent>
-          </Card>
+          
 
           {/* Modal Editar Métricas */}
           <Dialog open={editMetricsOpen} onOpenChange={setEditMetricsOpen}>
@@ -363,220 +387,290 @@ export default function PatientDetailPage() {
                     <Input
                       type="number"
                       value={value}
-                      onChange={(e) => setEditMetrics({ ...editMetrics, [field]: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setEditMetrics({ ...editMetrics, [field]: Number(e.target.value) })
+                      }
                     />
                   </div>
                 ))}
               </div>
               <DialogFooter className="mt-4">
-                <Button onClick={handleSaveMetrics} className="bg-indigo-600 text-white hover:bg-indigo-700">
+                <Button
+                  onClick={handleSaveMetrics}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                >
                   Salvar
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          
 
-<Tabs defaultValue="metricas" className="w-full mt-6">
-  <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
-    <TabsTrigger value="metricas">Métricas</TabsTrigger>
-    <TabsTrigger value="dietas">Dietas</TabsTrigger>
-    <TabsTrigger value="fotos">Fotos</TabsTrigger>
-  </TabsList>
+          {/* Tabs Início */}
+          <Tabs defaultValue="metricas" className="w-full mt-6">
+            <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
+              <TabsTrigger value="metricas">Métricas</TabsTrigger>
+              <TabsTrigger value="dietas">Dietas</TabsTrigger>
+              <TabsTrigger value="fotos">Fotos</TabsTrigger>
+            </TabsList>
 
-  {/* Aba Métricas */}
-  <TabsContent value="metricas" className="mt-4">
-    <Card>
-      <CardHeader>
-        <CardTitle>Atualizar Métricas</CardTitle>
-        <CardDescription>Registre as novas medidas do paciente</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-4">
-          <div className="grid w-full gap-2">
-            <Label>Data da Medição</Label>
-            <Input type="date" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="grid w-full gap-2">
-              <Label>Peso (kg)</Label>
-              <Input placeholder="70.5" />
-            </div>
-            <div className="grid w-full gap-2">
-              <Label>Percentual de Gordura (%)</Label>
-              <Input placeholder="22.5" />
-            </div>
-            <div className="grid w-full gap-2">
-              <Label>Percentual de Massa Magra (%)</Label>
-              <Input placeholder="77.5" />
-            </div>
-            <div className="grid w-full gap-2">
-              <Label>IMC</Label>
-              <Input placeholder="24.8" disabled />
-            </div>
-          </div>
-
-          <Separator className="my-2" />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="grid w-full gap-2">
-              <Label>Cintura (cm)</Label>
-              <Input placeholder="82" />
-            </div>
-            <div className="grid w-full gap-2">
-              <Label>Quadril (cm)</Label>
-              <Input placeholder="98" />
-            </div>
-            <div className="grid w-full gap-2">
-              <Label>Tórax (cm)</Label>
-              <Input placeholder="95" />
-            </div>
-            <div className="grid w-full gap-2">
-              <Label>Braço (cm)</Label>
-              <Input placeholder="32" />
-            </div>
-          </div>
-
-          <Button className="w-full md:w-auto mt-2 bg-indigo-600 hover:bg-indigo-700 text-white">
-            Salvar Medidas
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </TabsContent>
-
-  {/* Aba Dietas */}
-  <TabsContent value="dietas" className="mt-4">
-  <Card>
-    <CardHeader>
-      <CardTitle>Enviar Nova Dieta</CardTitle>
-      <CardDescription>Faça upload de dietas em PDF para o paciente</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <form onSubmit={handleUploadPDF}>
-        <div className="flex flex-col gap-4">
-          <div className="grid w-full gap-2">
-            <Label>Nome da Dieta</Label>
-            <Input placeholder="Ex: Dieta de Emagrecimento - Maio 2023" />
-          </div>
-          <div className="grid w-full gap-2">
-            <Label>Data</Label>
-            <Input type="date" />
-          </div>
-          <div className="grid w-full gap-2">
-            <Label>Arquivo PDF</Label>
-            <div className="flex items-center justify-center w-full">
-              <label
-                htmlFor="pdf-upload"
-                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
-              >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    Clique para fazer upload ou arraste o arquivo
-                  </p>
-                  <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
-                </div>
-                <input
-                  id="pdf-upload"
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setSelectedPDF(file);
-                  }}
-                />
-                {selectedPDF && (
-                  <div className="mt-2 text-sm flex items-center gap-2 text-green-600">
-                    <Upload className="w-4 h-4" />
-                    <span>{selectedPDF.name}</span>
+            {/* Aba Métricas */}
+            <TabsContent value="metricas" className="mt-4">
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>Histórico de Métricas</CardTitle>
+                  <CardDescription>Veja o histórico de medições do paciente</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {patient?.historicoMetricas?.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="p-2">Data</th>
+                            <th className="p-2">Peso (kg)</th>
+                            <th className="p-2">% Gordura</th>
+                            <th className="p-2">% Massa Magra</th>
+                            <th className="p-2">Cintura (cm)</th>
+                            <th className="p-2 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {patient.historicoMetricas
+                            .sort((a: any, b: any) => (a.data < b.data ? 1 : -1))
+                            .map((item: any, index: number) => (
+                              <tr key={index} className="border-b hover:bg-muted/50">
+                                <td className="p-2">{item.data}</td>
+                                <td className="p-2">{item.peso}</td>
+                                <td className="p-2">{item.gordura}</td>
+                                <td className="p-2">{item.massaMagra}</td>
+                                <td className="p-2">{item.cintura}</td>
+                                <td className="p-2 text-right">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => excluirMetrica(item.data)}
+                                  >
+                                    Excluir
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhuma métrica registrada ainda.</p>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Formulário Nova Medição */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nova Medição</CardTitle>
+                  <CardDescription>Preencha os campos para adicionar uma nova medição</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <div className="grid gap-2">
+                    <Label>Data da Medição</Label>
+                    <Input
+                      type="date"
+                      value={dataNovaMetrica}
+                      onChange={(e) => setDataNovaMetrica(e.target.value)}
+                    />
                   </div>
-                )}
-              </label>
-            </div>
-          </div>
-          <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-            Enviar Dieta
-          </Button>
-        </div>
-      </form>
-    </CardContent>
-  </Card>
-</TabsContent>
 
-  {/* Aba Fotos */}
-  <TabsContent value="fotos" className="mt-4">
-    <Card>
-      <CardHeader>
-        <CardTitle>Enviar Novas Fotos</CardTitle>
-        <CardDescription>Faça upload de fotos para acompanhamento visual</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-4">
-          <div className="grid w-full gap-2">
-            <Label>Data</Label>
-            <Input type="date" />
-          </div>
-          <div className="grid w-full gap-2">
-            <Label>Descrição</Label>
-            <Input placeholder="Ex: Frente, Lateral, Costas" />
-          </div>
-          <div className="grid w-full gap-2">
-            <Label>Foto</Label>
-            <div className="flex items-center justify-center w-full">
-              <label
-                htmlFor="photo-upload"
-                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
-              >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Camera className="w-8 h-8 mb-2 text-muted-foreground" />
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    Clique para fazer upload ou arraste a imagem
-                  </p>
-                  <p className="text-xs text-muted-foreground">JPG, PNG (MAX. 5MB)</p>
-                </div>
-                <input id="photo-upload" type="file" accept="image/*" className="hidden" />
-              </label>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  </TabsContent>
-</Tabs>
-<AlertDialog>
-  <AlertDialogTrigger asChild>
-    <Button variant="destructive" className="mt-6">
-      Excluir Paciente
-    </Button>
-  </AlertDialogTrigger>
-  <AlertDialogContent>
-    <AlertDialogHeader>
-      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-      <AlertDialogDescription>
-        Essa ação não poderá ser desfeita. O paciente será removido do seu painel.
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-      <AlertDialogAction onClick={handleDeletePatient} className="bg-red-600 hover:bg-red-700 text-white">
-        Confirmar Exclusão
-      </AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Peso (kg)</Label>
+                      <Input
+                        type="number"
+                        placeholder="70.5"
+                        value={pesoNovo}
+                        onChange={(e) => setPesoNovo(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Percentual de Gordura (%)</Label>
+                      <Input
+                        type="number"
+                        placeholder="22.5"
+                        value={gorduraNova}
+                        onChange={(e) => setGorduraNova(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Percentual de Massa Magra (%)</Label>
+                      <Input
+                        type="number"
+                        placeholder="77.5"
+                        value={massaMagraNova}
+                        onChange={(e) => setMassaMagraNova(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Cintura (cm)</Label>
+                      <Input
+                        type="number"
+                        placeholder="82"
+                        value={cinturaNova}
+                        onChange={(e) => setCinturaNova(e.target.value)}
+                      />
+                    </div>
+                  </div>
 
+                  <Button
+                    onClick={salvarNovaMetrica}
+                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    Salvar Medição
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
+            {/* Aba Dietas */}
+            <TabsContent value="dietas" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Enviar Nova Dieta</CardTitle>
+                  <CardDescription>Faça upload de dietas em PDF para o paciente</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleUploadPDF}>
+                    <div className="flex flex-col gap-4">
+                      <div className="grid gap-2">
+                        <Label>Nome da Dieta</Label>
+                        <Input placeholder="Ex: Dieta de Emagrecimento - Maio 2025" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Data</Label>
+                        <Input type="date" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Arquivo PDF</Label>
+                        <div className="flex items-center justify-center w-full">
+                          <label
+                            htmlFor="pdf-upload"
+                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
+                          >
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                              <p className="mb-2 text-sm text-muted-foreground">
+                                Clique para fazer upload ou arraste o arquivo
+                              </p>
+                              <p className="text-xs text-muted-foreground">PDF (Máx 10MB)</p>
+                            </div>
+                            <input
+                              id="pdf-upload"
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setSelectedPDF(file);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      {selectedPDF && (
+                        <p className="text-sm text-green-600">{selectedPDF.name}</p>
+                      )}
+                      <Button
+                        type="submit"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        Enviar Dieta
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            {/* Aba Fotos */}
+            <TabsContent value="fotos" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Enviar Novas Fotos</CardTitle>
+                  <CardDescription>Faça upload de fotos para acompanhamento visual</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-4">
+                    <div className="grid w-full gap-2">
+                      <Label>Data</Label>
+                      <Input type="date" />
+                    </div>
+                    <div className="grid w-full gap-2">
+                      <Label>Descrição</Label>
+                      <Input placeholder="Ex: Frente, Lateral, Costas" />
+                    </div>
+                    <div className="grid w-full gap-2">
+                      <Label>Foto</Label>
+                      <div className="flex items-center justify-center w-full">
+                        <label
+                          htmlFor="photo-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Camera className="w-8 h-8 mb-2 text-muted-foreground" />
+                            <p className="mb-2 text-sm text-muted-foreground">
+                              Clique para fazer upload ou arraste a imagem
+                            </p>
+                            <p className="text-xs text-muted-foreground">JPG, PNG (Máx 5MB)</p>
+                          </div>
+                          <input id="photo-upload" type="file" accept="image/*" className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          {/* Botão Excluir Paciente */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="mt-6">
+                Excluir Paciente
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Essa ação não poderá ser desfeita. O paciente será removido do seu painel.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeletePatient}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Confirmar Exclusão
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </main>
       </div>
     </div>
-  )
+  );
 }
 
-function SidebarItem({ href, icon, label, pathname }: { href: string, icon: React.ReactNode, label: string, pathname: string }) {
-  const isActive = pathname === href || pathname.startsWith(`${href}/`)
+function SidebarItem({
+  href,
+  icon,
+  label,
+  pathname,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  pathname: string;
+}) {
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
   return (
     <Link
       href={href}
@@ -589,7 +683,7 @@ function SidebarItem({ href, icon, label, pathname }: { href: string, icon: Reac
       {icon}
       {label}
     </Link>
-  )
+  );
 }
 
 function DollarIcon() {
@@ -610,6 +704,5 @@ function DollarIcon() {
       <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
       <path d="M12 18V6" />
     </svg>
-  )
+  );
 }
-
