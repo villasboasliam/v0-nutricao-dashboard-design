@@ -13,78 +13,72 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function FinanceiroPage() {
   const pathname = usePathname();
+
   const [valorConsultaPadrao, setValorConsultaPadrao] = useState<number>(250);
   const [consultas, setConsultas] = useState<any[]>([]);
+  const [pacientes, setPacientes] = useState<any[]>([]);
   const [novaConsultaModalAberto, setNovaConsultaModalAberto] = useState(false);
+  const [pacienteSelecionado, setPacienteSelecionado] = useState("");
   const [dataConsulta, setDataConsulta] = useState("");
   const [horario, setHorario] = useState("");
   const [duracao, setDuracao] = useState("30");
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [idNutricionista, setIdNutricionista] = useState<string | null>(null);
-  const [pacientes, setPacientes] = useState<any[]>([]);
-  const [pacienteSelecionado, setPacienteSelecionado] = useState("");
 
   useEffect(() => {
     async function fetchData() {
-      const userEmail = "villasboasliam@gmail.com"; // <-- Seu email correto aqui.
-  
-      const nutricionistaSnap = await getDocs(collection(db, "nutricionistas"));
-      const nutricionista = nutricionistaSnap.docs.find(doc => doc.data().email === userEmail);
-  
+      const userEmail = "villasboasliam@gmail.com"; // <- Aqui coloque seu email de nutricionista
+
+      const nutricionistasSnap = await getDocs(collection(db, "nutricionistas"));
+      const nutricionista = nutricionistasSnap.docs.find(doc => doc.data().email === userEmail);
+
       if (nutricionista) {
         const id = nutricionista.id;
         setIdNutricionista(id);
-        
-        // Primeiro carrega pacientes
         await carregarPacientes(id);
-  
-        // Depois carrega consultas
         await carregarConsultas(id);
       }
     }
     fetchData();
   }, []);
-  
 
-  
-  async function carregarPacientes(idNutricionista: string) {
-    const pacientesRef = collection(db, "nutricionistas", idNutricionista, "pacientes");
+  async function carregarPacientes(id: string) {
+    const pacientesRef = collection(db, "nutricionistas", id, "pacientes");
     const snapshot = await getDocs(pacientesRef);
     const listaPacientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setPacientes(listaPacientes);
   }
-  
 
-  async function carregarConsultas(idNutricionista: string) {
-    const consultasRef = collection(db, "nutricionistas", idNutricionista, "consultas");
+  async function carregarConsultas(id: string) {
+    const consultasRef = collection(db, "nutricionistas", id, "consultas");
     const snapshot = await getDocs(consultasRef);
-    const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setConsultas(list);
+    const listaConsultas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setConsultas(listaConsultas);
   }
-  
-  
-  
+
   async function criarConsulta() {
     if (!pacienteSelecionado || !dataConsulta || !horario || !idNutricionista) {
       alert("Preencha todos os campos obrigatórios!");
       return;
     }
-  
+
+    const pacienteNome = pacientes.find(p => p.id === pacienteSelecionado)?.nome || pacienteSelecionado;
+
     await addDoc(collection(db, "nutricionistas", idNutricionista, "consultas"), {
-      paciente: pacienteSelecionado,
+      paciente: pacienteNome,
       data: dataConsulta,
       horario,
       duracao,
       valor: valorConsultaPadrao,
       status: "Agendada",
     });
-  
+
     setPacienteSelecionado("");
     setDataConsulta("");
     setHorario("");
@@ -92,12 +86,12 @@ export default function FinanceiroPage() {
     setNovaConsultaModalAberto(false);
     await carregarConsultas(idNutricionista);
   }
-  
-  
   async function excluirConsulta(id: string) {
-    await deleteDoc(doc(db, "consultas", id));
+    if (!idNutricionista) return;
+    await deleteDoc(doc(db, "nutricionistas", idNutricionista, "consultas", id));
     await carregarConsultas(idNutricionista);
   }
+
   function calcularReceita(consultasFiltradas: any[]) {
     const total = consultasFiltradas.reduce((acc, consulta) => acc + (consulta.valor || 0), 0);
     return `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
@@ -108,14 +102,14 @@ export default function FinanceiroPage() {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
-  const anos = [2023, 2024, 2025];
+  const anos = [2023, 2024, 2025, 2026];
 
   function diasNoMes(mes: number, ano: number) {
     return new Date(ano, mes + 1, 0).getDate();
   }
 
-  function primeiroDiaDoMes(mes: number, ano: number) {
-    return new Date(ano, mes, 1).getDay();
+  function primeiroDiaSemana(mes: number, ano: number) {
+    return new Date(ano, mes, 1).getDay(); // 0 = Domingo
   }
 
   function consultasDoMesSelecionado() {
@@ -127,6 +121,16 @@ export default function FinanceiroPage() {
       );
     });
   }
+
+  function minutosOptions() {
+    const minutos: string[] = [];
+    for (let i = 0; i < 60; i += 5) {
+      minutos.push(i.toString().padStart(2, '0'));
+    }
+    return minutos;
+  }
+
+  const diasDaSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -150,7 +154,7 @@ export default function FinanceiroPage() {
 
       {/* Conteúdo Principal */}
       <div className="flex flex-1 flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:px-6">
+      <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:px-6">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="lg:hidden">
@@ -166,6 +170,7 @@ export default function FinanceiroPage() {
               </div>
             </SheetContent>
           </Sheet>
+
           <div className="w-full flex-1">
             <h2 className="text-lg font-medium">Financeiro</h2>
           </div>
@@ -192,9 +197,7 @@ export default function FinanceiroPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{calcularReceita(consultasDoMesSelecionado())}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {consultasDoMesSelecionado().length} consultas registradas
-                  </p>
+                  <p className="text-xs text-muted-foreground">{consultasDoMesSelecionado().length} consultas</p>
                 </CardContent>
               </Card>
 
@@ -328,33 +331,34 @@ export default function FinanceiroPage() {
                     </table>
                   </div>
                 ) : (
-                  <p className="text-center text-muted-foreground py-10">Nenhuma consulta cadastrada ainda.</p>
+                  <p className="text-center text-muted-foreground py-10">
+                    Nenhuma consulta cadastrada ainda.
+                  </p>
                 )}
               </CardContent>
             </Card>
+
             <ModalNovaConsulta
-  open={novaConsultaModalAberto}
-  onOpenChange={setNovaConsultaModalAberto}
-  pacientes={pacientes}
-  pacienteSelecionado={pacienteSelecionado}
-  setPacienteSelecionado={setPacienteSelecionado}
-  dataConsulta={dataConsulta}
-  setDataConsulta={setDataConsulta}
-  horario={horario}
-  setHorario={setHorario}
-  duracao={duracao}
-  setDuracao={setDuracao}
-  criarConsulta={criarConsulta}
-/>
+              open={novaConsultaModalAberto}
+              onOpenChange={setNovaConsultaModalAberto}
+              pacientes={pacientes}
+              pacienteSelecionado={pacienteSelecionado}
+              setPacienteSelecionado={setPacienteSelecionado}
+              dataConsulta={dataConsulta}
+              setDataConsulta={setDataConsulta}
+              horario={horario}
+              setHorario={setHorario}
+              duracao={duracao}
+              setDuracao={setDuracao}
+              criarConsulta={criarConsulta}
+            />
 
-
-            </div>
+          </div>
         </main>
       </div>
     </div>
   );
 }
-
 // Funções auxiliares
 function diasNoMes(mes: number, ano: number) {
   return new Date(ano, mes + 1, 0).getDate();
@@ -413,7 +417,6 @@ function SidebarItem({
     </Link>
   );
 }
-
 // Modal de Nova Consulta
 function ModalNovaConsulta({
   open,
@@ -429,10 +432,9 @@ function ModalNovaConsulta({
   setDuracao,
   criarConsulta,
 }: any) {
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[500px]"> {/* <-- Deixamos o modal maior aqui */}
         <DialogHeader>
           <DialogTitle>Nova Consulta</DialogTitle>
         </DialogHeader>
@@ -440,25 +442,23 @@ function ModalNovaConsulta({
           <div className="grid grid-cols-1 gap-2">
             <Label>Paciente</Label>
             <Select value={pacienteSelecionado} onValueChange={setPacienteSelecionado}>
-  <SelectTrigger>
-    <SelectValue placeholder="Selecione o paciente" />
-  </SelectTrigger>
-  <SelectContent>
-  {pacientes.length > 0 ? (
-    pacientes.map((p: any) => (
-      <SelectItem key={p.id} value={p.nome}>
-        {p.nome}
-      </SelectItem>
-    ))
-  ) : (
-    <SelectItem value="nenhum" disabled>
-      Nenhum paciente encontrado
-    </SelectItem>
-  )}
-</SelectContent>
-
-</Select>
-
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o paciente" />
+              </SelectTrigger>
+              <SelectContent>
+                {pacientes.length > 0 ? (
+                  pacientes.map((p: any) => (
+                    <SelectItem key={p.id} value={p.nome}>
+                      {p.nome}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="nenhum" disabled>
+                    Nenhum paciente encontrado
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-1 gap-2">
             <Label>Data</Label>
@@ -472,6 +472,7 @@ function ModalNovaConsulta({
             <Label>Horário</Label>
             <Input
               type="time"
+              step="300"  // <-- 5 minutos
               value={horario}
               onChange={(e) => setHorario(e.target.value)}
             />
