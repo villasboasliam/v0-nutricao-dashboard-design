@@ -4,40 +4,77 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  addDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Calendar,
+  FileText,
+  Home,
+  LineChart,
+  Menu,
+  Plus,
+  Users,
+  Video,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function FinanceiroPage() {
   const pathname = usePathname();
-
   const [valorConsultaPadrao, setValorConsultaPadrao] = useState<number>(250);
   const [consultas, setConsultas] = useState<any[]>([]);
   const [pacientes, setPacientes] = useState<any[]>([]);
-  const [novaConsultaModalAberto, setNovaConsultaModalAberto] = useState(false);
+  const [novaConsultaModalAberto, setNovaConsultaModalAberto] =
+    useState(false);
   const [pacienteSelecionado, setPacienteSelecionado] = useState("");
   const [dataConsulta, setDataConsulta] = useState("");
   const [horario, setHorario] = useState("");
   const [duracao, setDuracao] = useState("30");
-  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
-  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [mesSelecionado, setMesSelecionado] = useState(
+    new Date().getMonth()
+  );
+  const [anoSelecionado, setAnoSelecionado] = useState(
+    new Date().getFullYear()
+  );
   const [idNutricionista, setIdNutricionista] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      const userEmail = "villasboasliam@gmail.com"; // <- Aqui coloque seu email de nutricionista
-
+      const userEmail = "villasboasliam@gmail.com"; // <-- Email do nutricionista
       const nutricionistasSnap = await getDocs(collection(db, "nutricionistas"));
-      const nutricionista = nutricionistasSnap.docs.find(doc => doc.data().email === userEmail);
-
+      const nutricionista = nutricionistasSnap.docs.find(
+        (doc) => doc.data().email === userEmail
+      );
       if (nutricionista) {
         const id = nutricionista.id;
         setIdNutricionista(id);
@@ -51,14 +88,21 @@ export default function FinanceiroPage() {
   async function carregarPacientes(id: string) {
     const pacientesRef = collection(db, "nutricionistas", id, "pacientes");
     const snapshot = await getDocs(pacientesRef);
-    const listaPacientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const listaPacientes = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
     setPacientes(listaPacientes);
   }
 
   async function carregarConsultas(id: string) {
     const consultasRef = collection(db, "nutricionistas", id, "consultas");
     const snapshot = await getDocs(consultasRef);
-    const listaConsultas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const listaConsultas = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort(
+        (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
+      ); // ordem decrescente
     setConsultas(listaConsultas);
   }
 
@@ -68,7 +112,9 @@ export default function FinanceiroPage() {
       return;
     }
 
-    const pacienteNome = pacientes.find(p => p.id === pacienteSelecionado)?.nome || pacienteSelecionado;
+    const pacienteNome =
+      pacientes.find((p) => p.id === pacienteSelecionado)?.nome ||
+      pacienteSelecionado;
 
     await addDoc(collection(db, "nutricionistas", idNutricionista, "consultas"), {
       paciente: pacienteNome,
@@ -86,20 +132,48 @@ export default function FinanceiroPage() {
     setNovaConsultaModalAberto(false);
     await carregarConsultas(idNutricionista);
   }
+
   async function excluirConsulta(id: string) {
     if (!idNutricionista) return;
+    const confirm = window.confirm("Tem certeza que deseja excluir esta consulta?");
+    if (!confirm) return;
     await deleteDoc(doc(db, "nutricionistas", idNutricionista, "consultas", id));
     await carregarConsultas(idNutricionista);
   }
-
   function calcularReceita(consultasFiltradas: any[]) {
-    const total = consultasFiltradas.reduce((acc, consulta) => acc + (consulta.valor || 0), 0);
+    const total = consultasFiltradas.reduce(
+      (acc, consulta) => acc + (consulta.valor || 0),
+      0
+    );
     return `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
   }
 
+  function calcularReceitaDaSemana() {
+    const hoje = new Date();
+    const semanaInicio = new Date(hoje);
+    semanaInicio.setDate(hoje.getDate() - hoje.getDay());
+    const semanaFim = new Date(semanaInicio);
+    semanaFim.setDate(semanaInicio.getDate() + 6);
+    const consultasDaSemana = consultas.filter((consulta) => {
+      const data = new Date(consulta.data);
+      return data >= semanaInicio && data <= semanaFim;
+    });
+    return calcularReceita(consultasDaSemana);
+  }
+
   const meses = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
   ];
 
   const anos = [2023, 2024, 2025, 2026];
@@ -109,7 +183,7 @@ export default function FinanceiroPage() {
   }
 
   function primeiroDiaSemana(mes: number, ano: number) {
-    return new Date(ano, mes, 1).getDay(); // 0 = Domingo
+    return new Date(ano, mes, 1).getDay();
   }
 
   function consultasDoMesSelecionado() {
@@ -122,39 +196,62 @@ export default function FinanceiroPage() {
     });
   }
 
-  function minutosOptions() {
-    const minutos: string[] = [];
-    for (let i = 0; i < 60; i += 5) {
-      minutos.push(i.toString().padStart(2, '0'));
-    }
-    return minutos;
-  }
-
   const diasDaSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
       <aside className="hidden w-64 flex-col bg-card border-r border-border lg:flex">
         <div className="flex h-14 items-center border-b px-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-indigo-600">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-semibold text-indigo-600"
+          >
             <LineChart className="h-5 w-5" />
             <span>NutriDash</span>
           </Link>
         </div>
         <nav className="flex-1 space-y-1 p-2">
-          <SidebarItem href="/" icon={<Home className="h-4 w-4" />} label="Dashboard" pathname={pathname} />
-          <SidebarItem href="/pacientes" icon={<Users className="h-4 w-4" />} label="Pacientes" pathname={pathname} />
-          <SidebarItem href="/materiais" icon={<FileText className="h-4 w-4" />} label="Materiais" pathname={pathname} />
-          <SidebarItem href="/videos" icon={<Video className="h-4 w-4" />} label="Vídeos" pathname={pathname} />
-          <SidebarItem href="/financeiro" icon={<LineChart className="h-4 w-4" />} label="Financeiro" pathname={pathname} />
-          <SidebarItem href="/perfil" icon={<Users className="h-4 w-4" />} label="Perfil" pathname={pathname} />
+          <SidebarItem
+            href="/"
+            icon={<Home className="h-4 w-4" />}
+            label="Dashboard"
+            pathname={pathname}
+          />
+          <SidebarItem
+            href="/pacientes"
+            icon={<Users className="h-4 w-4" />}
+            label="Pacientes"
+            pathname={pathname}
+          />
+          <SidebarItem
+            href="/materiais"
+            icon={<FileText className="h-4 w-4" />}
+            label="Materiais"
+            pathname={pathname}
+          />
+          <SidebarItem
+            href="/videos"
+            icon={<Video className="h-4 w-4" />}
+            label="Vídeos"
+            pathname={pathname}
+          />
+          <SidebarItem
+            href="/financeiro"
+            icon={<LineChart className="h-4 w-4" />}
+            label="Financeiro"
+            pathname={pathname}
+          />
+          <SidebarItem
+            href="/perfil"
+            icon={<Users className="h-4 w-4" />}
+            label="Perfil"
+            pathname={pathname}
+          />
         </nav>
       </aside>
 
-      {/* Conteúdo Principal */}
       <div className="flex flex-1 flex-col">
-      <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:px-6">
+        <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:px-6">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="lg:hidden">
@@ -163,59 +260,79 @@ export default function FinanceiroPage() {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <div className="flex h-14 items-center border-b px-4">
-                <Link href="/" className="flex items-center gap-2 font-semibold text-indigo-600">
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 font-semibold text-indigo-600"
+                >
                   <LineChart className="h-5 w-5" />
                   <span>NutriDash</span>
                 </Link>
               </div>
             </SheetContent>
           </Sheet>
-
           <div className="w-full flex-1">
             <h2 className="text-lg font-medium">Financeiro</h2>
           </div>
-
           <ThemeToggle />
         </header>
-
         <main className="flex-1 p-4 md:p-6">
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-semibold tracking-tight">Controle Financeiro</h1>
-              <Button onClick={() => setNovaConsultaModalAberto(true)} className="bg-indigo-600 hover:bg-indigo-700">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Controle Financeiro
+              </h1>
+              <Button
+                onClick={() => setNovaConsultaModalAberto(true)}
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Consulta
               </Button>
             </div>
 
-            {/* Cards de Receita e Consultas */}
+            {/* Cards de Receita */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Receita do Mês</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Receita da Semana
+                  </CardTitle>
                   <DollarIcon />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{calcularReceita(consultasDoMesSelecionado())}</div>
-                  <p className="text-xs text-muted-foreground">{consultasDoMesSelecionado().length} consultas</p>
+                  <div className="text-2xl font-bold">
+                    {calcularReceitaDaSemana()}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Total arrecadado com as consultas da semana
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Valor Consulta Padrão</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Receita do Mês
+                  </CardTitle>
                   <DollarIcon />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">R$ {valorConsultaPadrao}</div>
-                  <p className="text-xs text-muted-foreground">Valor aplicado aos novos agendamentos</p>
+                  <div className="text-2xl font-bold">
+                    {calcularReceita(consultasDoMesSelecionado())}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {consultasDoMesSelecionado().length} consultas
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Filtros de Mês e Ano */}
+            {/* Filtros de mês/ano */}
             <div className="flex items-center gap-4 mt-4">
-              <Select value={mesSelecionado.toString()} onValueChange={(mes) => setMesSelecionado(Number(mes))}>
+              <Select
+                value={mesSelecionado.toString()}
+                onValueChange={(mes) => setMesSelecionado(Number(mes))}
+              >
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
@@ -228,7 +345,10 @@ export default function FinanceiroPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={anoSelecionado.toString()} onValueChange={(ano) => setAnoSelecionado(Number(ano))}>
+              <Select
+                value={anoSelecionado.toString()}
+                onValueChange={(ano) => setAnoSelecionado(Number(ano))}
+              >
                 <SelectTrigger className="w-[100px]">
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
@@ -241,11 +361,14 @@ export default function FinanceiroPage() {
                 </SelectContent>
               </Select>
             </div>
+
             {/* Calendário de Consultas */}
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Agenda de Consultas</CardTitle>
-                <CardDescription>Visualize suas consultas no calendário mensal</CardDescription>
+                <CardDescription>
+                  Visualize suas consultas no calendário mensal
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-7 gap-1 text-center font-semibold mb-2">
@@ -255,39 +378,52 @@ export default function FinanceiroPage() {
                 </div>
 
                 <div className="grid grid-cols-7 gap-1">
-                  {Array.from({ length: primeiroDiaSemana(mesSelecionado, anoSelecionado) }, (_, i) => (
-                    <div key={`empty-${i}`} className="border rounded-md h-28 p-1 bg-muted"></div>
-                  ))}
+                  {Array.from(
+                    { length: primeiroDiaSemana(mesSelecionado, anoSelecionado) },
+                    (_, i) => (
+                      <div
+                        key={`empty-${i}`}
+                        className="border rounded-md h-28 p-1 bg-muted"
+                      ></div>
+                    )
+                  )}
 
-                  {Array.from({ length: diasNoMes(mesSelecionado, anoSelecionado) }, (_, index) => {
-                    const dia = index + 1;
-                    const consultasDoDia = consultas.filter((consulta) => {
-                      const data = new Date(consulta.data);
+                  {Array.from(
+                    { length: diasNoMes(mesSelecionado, anoSelecionado) },
+                    (_, index) => {
+                      const dia = index + 1;
+const consultasDoDia = consultas.filter((consulta) => {
+  const data = new Date(consulta.data);
+  return (
+    data.getDate() === dia - 1 && // ajuste de exibição (+1 no quadro = -1 aqui)
+    data.getMonth() === mesSelecionado &&
+    data.getFullYear() === anoSelecionado
+  );
+});
+
+
                       return (
-                        data.getDate() === dia &&
-                        data.getMonth() === mesSelecionado &&
-                        data.getFullYear() === anoSelecionado
+                        <div
+                          key={dia}
+                          className="border rounded-md h-28 p-1 flex flex-col overflow-y-auto"
+                        >
+                          <div className="text-xs font-semibold">{dia}</div>
+                          {consultasDoDia.map((consulta) => (
+                            <div
+                              key={consulta.id}
+                              className="mt-1 text-sm bg-indigo-100 dark:bg-indigo-900 rounded p-1 px-2 text-indigo-600 dark:text-indigo-300 font-semibold"
+                            >
+                              <div>{consulta.horario}</div>
+                              <div className="truncate">{consulta.paciente}</div>
+                            </div>
+                          ))}
+                        </div>
                       );
-                    });
-
-                    return (
-                      <div key={dia} className="border rounded-md h-28 p-1 flex flex-col overflow-y-auto">
-                        <div className="text-xs font-semibold">{dia}</div>
-                        {consultasDoDia.map((consulta) => (
-                          <div
-                            key={consulta.id}
-                            className="mt-1 text-xs bg-indigo-100 dark:bg-indigo-900 rounded p-1 text-indigo-600 dark:text-indigo-300 truncate"
-                          >
-                            {consulta.horario} - {consulta.paciente}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+                    }
+                  )}
                 </div>
               </CardContent>
             </Card>
-
             {/* Lista de Consultas */}
             <Card className="mt-6">
               <CardHeader>
@@ -309,24 +445,30 @@ export default function FinanceiroPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {consultas.map((consulta) => (
-                          <tr key={consulta.id} className="border-b hover:bg-muted/50">
-                            <td className="px-4 py-2">{consulta.paciente}</td>
-                            <td className="px-4 py-2">{consulta.data}</td>
-                            <td className="px-4 py-2">{consulta.horario}</td>
-                            <td className="px-4 py-2">{consulta.duracao} min</td>
-                            <td className="px-4 py-2">R$ {consulta.valor}</td>
-                            <td className="px-4 py-2 text-right">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => excluirConsulta(consulta.id)}
-                              >
-                                Excluir
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
+                        {consultas
+                          .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                          .map((consulta) => (
+                            <tr key={consulta.id} className="border-b hover:bg-muted/50">
+                              <td className="px-4 py-2">{consulta.paciente}</td>
+                              <td className="px-4 py-2">{consulta.data}</td>
+                              <td className="px-4 py-2">{consulta.horario}</td>
+                              <td className="px-4 py-2">{consulta.duracao} min</td>
+                              <td className="px-4 py-2">R$ {consulta.valor}</td>
+                              <td className="px-4 py-2 text-right">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (confirm("Tem certeza que deseja excluir esta consulta?")) {
+                                      excluirConsulta(consulta.id);
+                                    }
+                                  }}
+                                >
+                                  Excluir
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
@@ -352,20 +494,20 @@ export default function FinanceiroPage() {
               setDuracao={setDuracao}
               criarConsulta={criarConsulta}
             />
-
           </div>
         </main>
       </div>
     </div>
   );
 }
+
 // Funções auxiliares
 function diasNoMes(mes: number, ano: number) {
   return new Date(ano, mes + 1, 0).getDate();
 }
 
 function primeiroDiaSemana(mes: number, ano: number) {
-  return new Date(ano, mes, 1).getDay(); // 0=Domingo, 1=Segunda...
+  return new Date(ano, mes, 1).getDay(); // 0 = Domingo
 }
 
 // Ícone de Dinheiro
@@ -390,6 +532,15 @@ function DollarIcon() {
   );
 }
 
+// Constantes de datas
+const meses = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
+const anos = [2023, 2024, 2025, 2026, 2027];
+
+const diasDaSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 // SidebarItem - botão de navegação lateral
 function SidebarItem({
   href,
@@ -417,6 +568,7 @@ function SidebarItem({
     </Link>
   );
 }
+
 // Modal de Nova Consulta
 function ModalNovaConsulta({
   open,
@@ -434,7 +586,7 @@ function ModalNovaConsulta({
 }: any) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]"> {/* <-- Deixamos o modal maior aqui */}
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Nova Consulta</DialogTitle>
         </DialogHeader>
@@ -462,28 +614,15 @@ function ModalNovaConsulta({
           </div>
           <div className="grid grid-cols-1 gap-2">
             <Label>Data</Label>
-            <Input
-              type="date"
-              value={dataConsulta}
-              onChange={(e) => setDataConsulta(e.target.value)}
-            />
+            <Input type="date" value={dataConsulta} onChange={(e) => setDataConsulta(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-2">
             <Label>Horário</Label>
-            <Input
-              type="time"
-              step="300"  // <-- 5 minutos
-              value={horario}
-              onChange={(e) => setHorario(e.target.value)}
-            />
+            <Input type="time" step="300" value={horario} onChange={(e) => setHorario(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-2">
             <Label>Duração (min)</Label>
-            <Input
-              value={duracao}
-              onChange={(e) => setDuracao(e.target.value)}
-              placeholder="Ex: 30"
-            />
+            <Input value={duracao} onChange={(e) => setDuracao(e.target.value)} placeholder="Ex: 30" />
           </div>
         </div>
         <DialogFooter className="mt-4">
@@ -498,15 +637,3 @@ function ModalNovaConsulta({
     </Dialog>
   );
 }
-
-// Constantes para os meses e dias da semana
-const meses = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
-
-const anos = [2023, 2024, 2025, 2026, 2027];
-
-const diasDaSemana = [
-  "Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"
-];
