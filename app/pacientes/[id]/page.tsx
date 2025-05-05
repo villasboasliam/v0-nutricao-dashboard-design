@@ -37,6 +37,9 @@ import { Switch } from "@/components/ui/switch"
 import { useParams } from "next/navigation"
 
 export default function PatientDetailPage() {
+  const [isDietUploaded, setIsDietUploaded] = useState(false);
+  const [isPhotosUploaded, setIsPhotosUploaded] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const params = useParams()
   const id = params?.id as string
   const pathname = usePathname()
@@ -44,11 +47,10 @@ export default function PatientDetailPage() {
   const { data: session } = useSession()
   const { t } = useLanguage()
   const { toast } = useToast()
-
+  const [showReplaceDietButton, setShowReplaceDietButton] = useState(false);
   const [selectedPDF, setSelectedPDF] = useState<File | null>(null)
   const [patient, setPatient] = useState<any | null>(null)
   const [isActive, setIsActive] = useState(true)
-
   const [dataNovaMetrica, setDataNovaMetrica] = useState("")
   const [pesoNovo, setPesoNovo] = useState("")
   const [gorduraNova, setGorduraNova] = useState("")
@@ -76,7 +78,103 @@ export default function PatientDetailPage() {
     massaMagra: 0,
     cintura: 0,
   })
+  const uploadPhoto = async (file: File, patientId: string, imageName: string) => {
+    if (!file) return null;
+    const storageRef = ref(storage, `pacientes/${patientId}/fotos/${imageName}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  };
+  const handleReplaceDiet = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!session?.user?.email) {
+      toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
+      return;
+    }
 
+    const file = selectedPDF;
+    if (!file) {
+      toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um novo arquivo PDF." });
+      return;
+    }
+
+    try {
+      // 1. **Opcional: Excluir a dieta antiga do Storage**
+      // Para implementar isso, você precisaria armazenar o nome do arquivo antigo.
+      // Por enquanto, vamos pular essa parte para simplificar.
+
+      // 2. Fazer upload da nova dieta
+      const downloadURL = await uploadPDF(file, id);
+      toast({ title: "Dieta substituída", description: "A dieta foi substituída com sucesso." });
+
+      // 3. Atualizar o documento do paciente no Firestore com a nova dieta
+      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+      await updateDoc(ref, {
+        dietas: [ // Substituímos o array inteiro com a nova dieta
+          { nome: file.name, url: downloadURL, dataEnvio: new Date().toLocaleDateString() },
+        ],
+      });
+
+      // 4. Atualizar os estados locais
+      setIsDietUploaded(true);
+    } catch (error) {
+      console.error("Erro ao substituir a dieta:", error);
+      toast({ title: "Erro ao substituir a dieta", description: "Não foi possível substituir o arquivo." });
+    }
+  };
+  const handleUploadPhotos = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!session?.user?.email) {
+      toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
+      return;
+    }
+
+    if (isPhotosUploaded) {
+      toast({ title: "Envio já realizado", description: "As fotos já foram enviadas anteriormente." });
+      return;
+    }
+
+    if (!selectedPhotos || selectedPhotos.length === 0) {
+      toast({ title: "Nenhuma foto selecionada", description: "Por favor, selecione até 3 fotos." });
+      return;
+    }
+
+    if (selectedPhotos.length > 3) {
+      toast({ title: "Limite de fotos excedido", description: "Você pode enviar no máximo 3 fotos por vez." });
+      return;
+    }
+
+    try {
+      const downloadURLs = await Promise.all(
+        selectedPhotos.map(async (file, index) => {
+          return await uploadPhoto(file, id, `foto_${Date.now()}_${index + 1}`);
+        })
+      );
+
+      toast({ title: "Upload concluído", description: `${downloadURLs.length} foto(s) enviada(s) com sucesso.` });
+      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+      await updateDoc(ref, {
+        fotos: arrayUnion({ data: new Date().toLocaleDateString(), urls: downloadURLs }),
+      });
+      setIsPhotosUploaded(true);
+      setSelectedPhotos([]); // Limpa as fotos selecionadas após o envio
+    } catch (error) {
+      console.error("Erro ao fazer upload das fotos:", error);
+      toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar as fotos." });
+    }
+  };
+
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newPhotos = Array.from(files);
+      if (newPhotos.length > 3) {
+        toast({ title: "Limite de fotos excedido", description: "Você pode selecionar no máximo 3 fotos." });
+        return;
+      }
+      setSelectedPhotos(newPhotos);
+    }
+  };
   const uploadPDF = async (file: File, patientId: string) => {
     if (!file) return null;
     const storageRef = ref(storage, `pacientes/${patientId}/dietas/${file.name}`);
@@ -90,6 +188,12 @@ export default function PatientDetailPage() {
       toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
       return;
     }
+
+    if (isDietUploaded) {
+      toast({ title: "Envio já realizado", description: "O PDF da dieta já foi enviado anteriormente." });
+      return;
+    }
+
     const file = selectedPDF;
     if (!file) {
       toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um arquivo PDF." });
@@ -100,46 +204,51 @@ export default function PatientDetailPage() {
       toast({ title: "Upload concluído", description: "O arquivo foi enviado com sucesso." });
       const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
       await updateDoc(ref, {
-        dietas: arrayUnion({ nome: file.name, url: downloadURL }),
+        dietas: arrayUnion({ nome: file.name, url: downloadURL, dataEnvio: new Date().toLocaleDateString() }), // Adicionando a data de envio
       });
+      setIsDietUploaded(true);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
       toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar o arquivo." });
     }
-  }
+  };
 
   useEffect(() => {
     const fetchPatient = async () => {
-      if (!session?.user?.email) return
-      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id)
-      const snap = await getDoc(ref)
+      if (!session?.user?.email) return;
+      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+      const snap = await getDoc(ref);
       if (snap.exists()) {
-        const data = snap.data()
+        const data = snap.data();
         setPatient({
           ...data,
           historicoMetricas: data.historicoMetricas || [],
+          dietas: data.dietas || [], // Capture o array de dietas
+          fotos: data.fotos || [],   // Capture o array de fotos
         });
-        setIsActive(data.status === "Ativo")
+        setIsActive(data.status === "Ativo");
         setEditData({
           name: data.nome || "",
           email: data.email || "",
           telefone: data.telefone || "",
           birthdate: data.birthdate || "",
           valorConsulta: data.valorConsulta || "",
-        })
+        });
         setEditMetrics({
           peso: data.peso_atual || 0,
           altura: data.altura || 0,
           gordura: data.gordura || 0,
           massaMagra: data.massa_magra || 0,
           cintura: data.cintura || 0,
-        })
+        });
+        setIsDietUploaded(data.dietas && data.dietas.length > 0); // Verifica se já existem dietas
+        setIsPhotosUploaded(data.fotos && data.fotos.length > 0);   // Verifica se já existem fotos
       } else {
-        setPatient(null)
+        setPatient(null);
       }
-    }
-    fetchPatient()
-  }, [id, session])
+    };
+    fetchPatient();
+  }, [id, session]);
 
   const handleSaveInfo = async () => {
     if (!session?.user?.email) return
@@ -258,7 +367,7 @@ export default function PatientDetailPage() {
           <SidebarItem href="/" icon={<Home className="h-4 w-4" />} label={t("dashboard")} pathname={pathname} />
           <SidebarItem href="/pacientes" icon={<Users className="h-4 w-4" />} label={t("patients")} pathname={pathname} />
           <SidebarItem href="/materiais" icon={<FileText className="h-4 w-4" />} label="Materiais" pathname={pathname} />
-          <SidebarItem href="/videos" icon={<Video className="h-4 w-4" />} label={t("videos")} pathname={pathname} />
+       
           <SidebarItem href="/financeiro" icon={<LineChart className="h-4 w-4" />} label="Financeiro" pathname={pathname} />
           <SidebarItem href="/perfil" icon={<Users className="h-4 w-4" />} label={t("profile")} pathname={pathname} />
         </nav>
@@ -536,7 +645,7 @@ export default function PatientDetailPage() {
                   <CardDescription>Faça upload de dietas em PDF para o paciente</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleUploadPDF}>
+                <form onSubmit={handleReplaceDiet}>
                     <div className="flex flex-col gap-4">
                       <div className="grid gap-2">
                         <Label>Nome da Dieta</Label>
@@ -576,12 +685,16 @@ export default function PatientDetailPage() {
                       {selectedPDF && (
                         <p className="text-sm text-green-600">{selectedPDF.name}</p>
                       )}
+                      <div className="flex gap-2">
                       <Button
-                        type="submit"
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                      >
-                        Enviar Dieta
-                      </Button>
+                          type="submit"
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                          disabled={!selectedPDF}
+                        >
+                          {isDietUploaded ? 'Substituir Dieta' : 'Enviar Dieta'}
+                        </Button>
+              
+                      </div>
                     </div>
                   </form>
                 </CardContent>
@@ -591,38 +704,68 @@ export default function PatientDetailPage() {
             <TabsContent value="fotos" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Enviar Novas Fotos</CardTitle>
-                  <CardDescription>Faça upload de fotos para acompanhamento visual</CardDescription>
+                  <CardTitle>Enviar Fotos de Acompanhamento</CardTitle>
+                  <CardDescription>Envie até 3 fotos para registrar o progresso do paciente</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col gap-4">
-                    <div className="grid w-full gap-2">
-                      <Label>Data</Label>
-                      <Input type="date" />
-                    </div>
-                    <div className="grid w-full gap-2">
-                      <Label>Descrição</Label>
-                      <Input placeholder="Ex: Frente, Lateral, Costas" />
-                    </div>
-                    <div className="grid w-full gap-2">
-                      <Label>Foto</Label>
-                      <div className="flex items-center justify-center w-full">
-                        <label
-                          htmlFor="photo-upload"
-                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
-                        >
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <Camera className="w-8 h-8 mb-2 text-muted-foreground" />
-                            <p className="mb-2 text-sm text-muted-foreground">
-                              Clique para fazer upload ou arraste a imagem
-                            </p>
-                            <p className="text-xs text-muted-foreground">JPG, PNG (Máx 5MB)</p>
-                          </div>
-                          <input id="photo-upload" type="file" accept="image/*" className="hidden" />
-                        </label>
+                  <form onSubmit={handleUploadPhotos}>
+                    <div className="flex flex-col gap-4">
+                      <div className="grid w-full gap-2">
+                        <Label>Data das Fotos</Label>
+                        <Input type="date" />
                       </div>
+                      <div className="grid w-full gap-2">
+                        <Label>Descrição (Opcional)</Label>
+                        <Input placeholder="Ex: Fotos da primeira semana" />
+                      </div>
+                      <div className="grid w-full gap-2">
+                        <Label>Fotos (Máximo 3)</Label>
+                        <div className="flex items-center justify-center w-full">
+                          <label
+                            htmlFor="photo-upload"
+                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
+                          >
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Camera className="w-8 h-8 mb-2 text-muted-foreground" />
+                              <p className="mb-2 text-sm text-muted-foreground">
+                                Clique para selecionar até 3 fotos
+                              </p>
+                              <p className="text-xs text-muted-foreground">JPG, PNG (Máx 5MB por foto)</p>
+                            </div>
+                            <input
+                              id="photo-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              multiple // Permite selecionar múltiplos arquivos
+                              onChange={handlePhotoChange}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      {selectedPhotos.length > 0 && (
+                        <div className="flex space-x-2">
+                          {selectedPhotos.map((photo, index) => (
+                            <div key={index} className="relative w-20 h-20 overflow-hidden rounded-md">
+                              <Image
+                                src={URL.createObjectURL(photo)}
+                                alt={photo.name}
+                                layout="fill"
+                                objectFit="cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Button
+                        type="submit"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                        disabled={isPhotosUploaded || selectedPhotos.length === 0 || selectedPhotos.length > 3}
+                      >
+                        {isPhotosUploaded ? "Fotos Enviadas" : "Enviar Fotos"}
+                      </Button>
                     </div>
-                  </div>
+                  </form>
                 </CardContent>
               </Card>
             </TabsContent>

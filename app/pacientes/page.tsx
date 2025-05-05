@@ -232,7 +232,6 @@ function SidebarLinks({ pathname, t }: { pathname: string, t: any }) {
     { href: "/", label: t("dashboard"), icon: Home },
     { href: "/pacientes", label: t("patients"), icon: Users },
     { href: "/materiais", label: "Materiais", icon: FileText },
-    { href: "/videos", label: t("videos"), icon: Video },
     { href: "/financeiro", label: "Financeiro", icon: LineChart },
     { href: "/perfil", label: t("profile"), icon: Users },
   ]

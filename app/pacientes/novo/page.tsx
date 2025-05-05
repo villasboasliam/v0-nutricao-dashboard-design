@@ -75,9 +75,7 @@ export default function NovoPacientePage() {
           <Link href="/materiais" className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${pathname === "/materiais" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300" : "text-foreground hover:bg-muted"}`}>
             <FileText className="h-4 w-4" /> Materiais
           </Link>
-          <Link href="/videos" className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${pathname === "/videos" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300" : "text-foreground hover:bg-muted"}`}>
-            <Video className="h-4 w-4" /> Vídeos
-          </Link>
+          
           <Link href="/financeiro" className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${pathname === "/financeiro" ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300" : "text-foreground hover:bg-muted"}`}>
             <LineChart className="h-4 w-4" /> Financeiro
           </Link>

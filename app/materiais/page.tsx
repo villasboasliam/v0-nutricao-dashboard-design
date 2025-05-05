@@ -2,7 +2,7 @@
 
 import { FileText, Home, LineChart, Menu, Plus, Upload, Users, Video } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation" // Import useRouter para navegação
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,18 +11,62 @@ import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useToast } from "@/components/ui/use-toast"
+import { useState } from "react" // Import useState
 
 export default function MateriaisPage() {
   const pathname = usePathname()
+  const router = useRouter() // Inicializa o router
   const { toast } = useToast()
 
-  // Função para lidar com o envio de material
+  const [isAddingNewCollection, setIsAddingNewCollection] = useState(false) // Estado para controlar a visibilidade do formulário de nova coleção
+  const [newCollectionTitle, setNewCollectionTitle] = useState("")
+  const [newCollectionDescription, setNewCollectionDescription] = useState("")
+  const [newCollectionPdf, setNewCollectionPdf] = useState<File | null>(null)
+
+  // Função para lidar com o envio de material (a ser adaptada para coleções)
   const handleSendMaterial = () => {
-    toast({
-      title: "Material adicionado com sucesso!",
-      description: "O material foi disponibilizado para todos os pacientes.",
-      variant: "default",
-    })
+    if (newCollectionTitle && newCollectionDescription && newCollectionPdf) {
+      // Aqui você irá implementar a lógica para enviar os dados e o PDF para o Firebase
+      console.log("Enviando nova coleção:", {
+        title: newCollectionTitle,
+        description: newCollectionDescription,
+        pdf: newCollectionPdf,
+      })
+      toast({
+        title: "Coleção adicionada com sucesso!",
+        description: `A coleção "${newCollectionTitle}" foi criada.`,
+        variant: "default",
+      })
+      setIsAddingNewCollection(false) // Esconde o formulário após o envio
+      // Limpar os estados do formulário
+      setNewCollectionTitle("")
+      setNewCollectionDescription("")
+      setNewCollectionPdf(null)
+    } else {
+      toast({
+        title: "Erro",
+        description: "Por favor, preencha todos os campos e selecione um arquivo PDF.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleNewCollectionClick = () => {
+    setIsAddingNewCollection(true) // Mostra o formulário de nova coleção
+  }
+
+  const handleCancelNewCollection = () => {
+    setIsAddingNewCollection(false) // Esconde o formulário de nova coleção
+    // Limpar os estados do formulário ao cancelar
+    setNewCollectionTitle("")
+    setNewCollectionDescription("")
+    setNewCollectionPdf(null)
+  }
+
+  const handlePdfChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setNewCollectionPdf(event.target.files[0])
+    }
   }
 
   return (
@@ -69,17 +113,7 @@ export default function MateriaisPage() {
             <FileText className="h-4 w-4" />
             Materiais
           </Link>
-          <Link
-            href="/videos"
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-              pathname === "/videos"
-                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                : "text-foreground hover:bg-muted"
-            }`}
-          >
-            <Video className="h-4 w-4" />
-            Vídeos
-          </Link>
+          
           <Link
             href="/financeiro"
             className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -89,20 +123,20 @@ export default function MateriaisPage() {
             }`}
           >
             <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M3 3v18h18" />
-                <path d="m19 9-5 5-4-4-3 3" />
-              </svg>
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M3 3v18h18" />
+              <path d="m19 9-5 5-4-4-3 3" />
+            </svg>
             Financeiro
           </Link>
           <Link
@@ -171,17 +205,7 @@ export default function MateriaisPage() {
                   <FileText className="h-4 w-4" />
                   Materiais
                 </Link>
-                <Link
-                  href="/videos"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                    pathname === "/videos"
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Video className="h-4 w-4" />
-                  Vídeos
-                </Link>
+                
                 <Link
                   href="/financeiro"
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
@@ -237,150 +261,81 @@ export default function MateriaisPage() {
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-semibold tracking-tight">Biblioteca de Materiais</h1>
-              <Button className="bg-indigo-600 hover:bg-indigo-700">
+              <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleNewCollectionClick}>
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Material
+                Nova Coleção
               </Button>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Adicionar Novo Material</CardTitle>
-                <CardDescription>Faça upload de PDFs para compartilhar com todos os pacientes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <div className="grid w-full gap-2">
-                    <Label htmlFor="material-name">Nome do Material</Label>
-                    <Input id="material-name" placeholder="Ex: Guia de Alimentação Saudável" />
-                  </div>
-                  <div className="grid w-full gap-2">
-                    <Label htmlFor="material-description">Descrição</Label>
-                    <Input id="material-description" placeholder="Breve descrição do material" />
-                  </div>
-                  <div className="grid w-full gap-2">
-                    <Label htmlFor="material-category">Categoria</Label>
-                    <Input id="material-category" placeholder="Ex: Nutrição, Receitas, Educação" />
-                  </div>
-                  <div className="grid w-full gap-2">
-                    <Label htmlFor="pdf-upload">Arquivo PDF</Label>
-                    <div className="flex items-center justify-center w-full">
-                      <label
-                        htmlFor="pdf-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
-                      >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="mb-2 text-sm text-muted-foreground">
-                            Clique para fazer upload ou arraste o arquivo
-                          </p>
-                          <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
-                        </div>
-                        <input id="pdf-upload" type="file" accept=".pdf" className="hidden" />
-                      </label>
+            {isAddingNewCollection && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Adicionar Nova Coleção</CardTitle>
+                  <CardDescription>Crie uma nova coleção de materiais para seus pacientes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-4">
+                    <div className="grid w-full gap-2">
+                      <Label htmlFor="collection-name">Nome da Coleção</Label>
+                      <Input
+                        id="collection-name"
+                        placeholder="Ex: Dicas de Café da Manhã Saudável"
+                        value={newCollectionTitle}
+                        onChange={(e) => setNewCollectionTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid w-full gap-2">
+                      <Label htmlFor="collection-description">Descrição</Label>
+                      <Input
+                        id="collection-description"
+                        placeholder="Breve descrição da coleção"
+                        value={newCollectionDescription}
+                        onChange={(e) => setNewCollectionDescription(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid w-full gap-2">
+                      <Label htmlFor="pdf-upload">Arquivo PDF</Label>
+                      <div className="flex items-center justify-center w-full">
+                        <label
+                          htmlFor="pdf-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 dark:border-gray-600"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                            <p className="mb-2 text-sm text-muted-foreground">
+                              Clique para fazer upload ou arraste o arquivo
+                            </p>
+                            <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
+                          </div>
+                          <input
+                            id="pdf-upload"
+                            type="file"
+                            accept=".pdf"
+                            className="hidden"
+                            onChange={handlePdfChange}
+                          />
+                        </label>
+                      </div>
+                      {newCollectionPdf && (
+                        <p className="mt-2 text-sm text-muted-foreground">Arquivo selecionado: {newCollectionPdf.name}</p>
+                      )}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="secondary" onClick={handleCancelNewCollection}>
+                        Cancelar
+                      </Button>
+                      <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleSendMaterial}>
+                        Criar Coleção
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
-                    onClick={handleSendMaterial}
-                  >
-                    Enviar Material
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
+            {/* Aqui serão renderizados os cards dinamicamente */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Guia de Alimentação Saudável</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Guia completo com orientações para uma alimentação equilibrada e saudável.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Receitas Low Carb</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Coletânea de receitas com baixo teor de carboidratos para dietas específicas.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Guia de Suplementação</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Informações sobre suplementos nutricionais e suas aplicações.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Tabela de Calorias</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Tabela completa com valores calóricos dos principais alimentos.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Guia de Hidratação</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Orientações sobre a importância da hidratação e como calcular a ingestão ideal.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Nutrição para Atletas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Guia especializado para alimentação de atletas e praticantes de atividades físicas.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Os cards dinâmicos serão inseridos aqui */}
             </div>
           </div>
         </main>

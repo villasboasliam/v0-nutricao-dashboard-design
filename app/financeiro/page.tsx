@@ -229,12 +229,7 @@ export default function FinanceiroPage() {
             label="Materiais"
             pathname={pathname}
           />
-          <SidebarItem
-            href="/videos"
-            icon={<Video className="h-4 w-4" />}
-            label="Vídeos"
-            pathname={pathname}
-          />
+        
           <SidebarItem
             href="/financeiro"
             icon={<LineChart className="h-4 w-4" />}
