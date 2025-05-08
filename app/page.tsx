@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { collection, getDocs } from "firebase/firestore"
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 import { Calendar, FileText, Home, LineChart, Menu, Plus, Users, Video } from "lucide-react"
@@ -24,6 +24,11 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 interface AcessoDia {
   dia: string
   acessos: number
+}
+
+interface ConsultaMes {
+  mes: string
+  consultas: number
 }
 
 export default function DashboardWrapper() {
@@ -58,23 +63,25 @@ function Dashboard({ session }: { session: any }) {
     taxaAcesso: 0,
     acessosPorDia: [] as AcessoDia[],
   })
+  const [consultasUltimos6Meses, setConsultasUltimos6Meses] = useState<ConsultaMes[]>([])
 
   useEffect(() => {
     const fetchMetrics = async () => {
       if (!session?.user?.email) return
 
-      const snap = await getDocs(collection(db, "nutricionistas", session.user.email, "pacientes"))
-      const pacientes = snap.docs.map(doc => doc.data())
+      const nutricionistaPacientesRef = collection(db, "nutricionistas", session.user.email, "pacientes");
+      const pacientesSnap = await getDocs(nutricionistaPacientesRef);
+      const pacientes = pacientesSnap.docs.map(doc => doc.data());
 
-      const totalPacientes = pacientes.length
-      const pacientesAtivos = pacientes.filter(p => p.status === "Ativo").length
-      const pacientesAtivosSemanaAnterior = Math.max(0, pacientesAtivos - 1)
-      const dietasEnviadas = pacientes.filter(p => p.dieta_pdf_url).length
-      const dietasSemanaAnterior = Math.max(0, dietasEnviadas - 1)
-      const taxaAcesso = Math.floor((pacientesAtivos / Math.max(totalPacientes, 1)) * 100)
+      const totalPacientes = pacientes.length;
+      const pacientesAtivos = pacientes.filter(p => p.status === "Ativo").length;
+      const pacientesAtivosSemanaAnterior = Math.max(0, pacientesAtivos - 1);
+      const dietasEnviadas = pacientes.filter(p => p.dieta_pdf_url).length;
+      const dietasSemanaAnterior = Math.max(0, dietasEnviadas - 1);
+      const taxaAcesso = Math.floor((pacientesAtivos / Math.max(totalPacientes, 1)) * 100);
 
-      const diasSemana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
-      const acessosPorDia = diasSemana.map((dia, i) => ({ dia, acessos: (pacientesAtivos + i * 3) % 200 }))
+      const diasSemana = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+      const acessosPorDia = diasSemana.map((dia, i) => ({ dia, acessos: (pacientesAtivos + i * 3) % 200 }));
 
       setMetrics({
         totalPacientes,
@@ -84,7 +91,41 @@ function Dashboard({ session }: { session: any }) {
         dietasSemanaAnterior,
         taxaAcesso,
         acessosPorDia,
-      })
+      });
+
+      // Buscar consultas dos últimos 6 meses
+      const consultasRef = collection(db, "nutricionistas", session.user.email, "consultas");
+      const seisMesesAtras = new Date();
+      seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
+
+      // Converter a data para string no formato 'YYYY-MM-DD' para comparar com o seu campo "data"
+      const seisMesesAtrasString = `${seisMesesAtras.getFullYear()}-${(seisMesesAtras.getMonth() + 1).toString().padStart(2, '0')}-${seisMesesAtras.getDate().toString().padStart(2, '0')}`;
+
+      const q = query(consultasRef, where("data", ">=", seisMesesAtrasString));
+      const consultasSnap = await getDocs(q);
+      const consultas = consultasSnap.docs.map(doc => doc.data());
+
+      // Agrupar e contar consultas por mês
+      const consultasPorMes: { [key: string]: number } = {};
+      consultas.forEach(consulta => {
+        const dataConsulta = consulta.data;
+        if (typeof dataConsulta === 'string' && dataConsulta.includes('-')) {
+          const [ano, mes] = dataConsulta.split('-');
+          const chave = `${ano}-${mes}`;
+          consultasPorMes[chave] = (consultasPorMes[chave] || 0) + 1;
+        }
+      });
+
+      // Formatar dados para o gráfico
+      const dataGraficoConsultas = Object.keys(consultasPorMes)
+        .sort()
+        .map(chave => {
+          const [ano, mes] = chave.split('-');
+          const nomeMes = new Date(parseInt(ano), parseInt(mes) - 1, 1).toLocaleDateString('pt-BR', { month: 'short' });
+          return { mes: nomeMes, consultas: consultasPorMes[chave] };
+        });
+
+      setConsultasUltimos6Meses(dataGraficoConsultas.slice(-6));
     }
 
     fetchMetrics()
@@ -118,7 +159,7 @@ function Dashboard({ session }: { session: any }) {
           <SidebarItem href="/" icon={<Home className="h-4 w-4" />} label={t("dashboard")} pathname={pathname} />
           <SidebarItem href="/pacientes" icon={<Users className="h-4 w-4" />} label={t("patients")} pathname={pathname} />
           <SidebarItem href="/materiais" icon={<FileText className="h-4 w-4" />} label="Materiais" pathname={pathname} />
-          
+
           <SidebarItem href="/financeiro" icon={<LineChart className="h-4 w-4" />} label="Financeiro" pathname={pathname} />
           <SidebarItem href="/perfil" icon={<Users className="h-4 w-4" />} label={t("profile")} pathname={pathname} />
         </nav>
@@ -155,7 +196,7 @@ function Dashboard({ session }: { session: any }) {
             <MetricCard title={t("app.access.rate")} value={`${metrics.taxaAcesso}%`} icon={<LineChart className="h-4 w-4 text-muted-foreground" />} note={`+${metrics.taxaAcesso - 45}% que mês passado`} />
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 grid gap-4 md:grid-cols-1 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>{t("app.access")}</CardTitle>
@@ -169,6 +210,24 @@ function Dashboard({ session }: { session: any }) {
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="acessos" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("Consultas por Mês") || "Consultas por Mês"}</CardTitle>
+                <CardDescription>{t("Número de consultas nos últimos 6 meses") || "Número de consultas nos últimos 6 meses"}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={consultasUltimos6Meses}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="mes" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="consultas" fill="#10B981" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

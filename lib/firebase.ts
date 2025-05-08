@@ -1,10 +1,9 @@
-// lib/firebase.ts
 import { initializeApp, getApp, FirebaseApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAuth } from "firebase/auth"; // Importante: Importe getAuth
 
 const firebaseConfig = {
-  // Suas configurações do Firebase (a partir de .env.local)
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -16,11 +15,12 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 try {
-  app = getApp(); // Tenta obter o app existente
+  app = getApp();
 } catch (e) {
-  app = initializeApp(firebaseConfig); // Se não existir, inicializa um novo
+  app = initializeApp(firebaseConfig);
 }
 
-export const firebaseApp = app; // Exporte a instância do app
+export const firebaseApp = app;
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const auth = getAuth(app); // Importante: Inicialize e exporte o auth
