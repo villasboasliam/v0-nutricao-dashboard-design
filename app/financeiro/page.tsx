@@ -452,11 +452,16 @@ export default function FinanceiroPage() {
                                             const diaCalendario = index + 1;
 
                                             const consultasDoDia = consultas.filter((consulta) => {
-                                              const dataConsulta = new Date(consulta.data);
+                                                const dataConsulta = new Date(consulta.data);
+                                                // Ajuste para UTC para evitar problemas de timezone
+                                                const diaConsultaUTC = dataConsulta.getUTCDate();
+                                                const mesConsultaUTC = dataConsulta.getUTCMonth();
+                                                const anoConsultaUTC = dataConsulta.getUTCFullYear();
+                                            
                                                 return (
-                                                    dataConsulta.getDate() === diaCalendario &&
-                                                    dataConsulta.getMonth() === mesSelecionado &&
-                                                    dataConsulta.getFullYear() === anoSelecionado
+                                                    diaConsultaUTC === diaCalendario &&
+                                                    mesConsultaUTC === mesSelecionado &&
+                                                    anoConsultaUTC === anoSelecionado
                                                 );
                                             });
 

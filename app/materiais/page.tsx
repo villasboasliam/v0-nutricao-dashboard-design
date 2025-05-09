@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, Home, LineChart, Menu, Plus, Upload, Users, Video, X, Trash2 } from "lucide-react"
+import { FileText, Home, LineChart, Menu, Plus, Upload, Users, Video, X, Trash2, Edit } from "lucide-react";
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import { db, storage } from "@/lib/firebase"
 import { collection, addDoc, getDocs, collectionGroup, query, where, doc, deleteDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 
+
 export default function MateriaisPage() {
     const pathname = usePathname()
     const { toast } = useToast()
@@ -30,7 +31,66 @@ export default function MateriaisPage() {
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 
     const [colecoes, setColecoes] = useState<any[]>([])
+    const [isEditingCollection, setIsEditingCollection] = useState(false);
+const [editingCollectionId, setEditingCollectionId] = useState<string | null>(null);
+const [editCollectionTitle, setEditCollectionTitle] = useState("");
+const [editCollectionDescription, setEditCollectionDescription] = useState("");
 
+const handleEditCollection = (collection: any) => {
+    setIsEditingCollection(true);
+    setEditingCollectionId(collection.id);
+    setEditCollectionTitle(collection.titulo);
+    setEditCollectionDescription(collection.descricao);
+};
+
+const handleCancelEditCollection = () => {
+    setIsEditingCollection(false);
+    setEditingCollectionId(null);
+    setEditCollectionTitle("");
+    setEditCollectionDescription("");
+};
+
+const handleSaveEditCollection = async () => {
+    if (!editCollectionTitle || !editCollectionDescription || !editingCollectionId || !session?.user?.email) {
+        toast({
+            title: "Erro",
+            description: "Por favor, preencha todos os campos.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    try {
+        const colRef = doc(db, "nutricionistas", session.user.email, "colecoes", editingCollectionId);
+        await updateDoc(colRef, {
+            titulo: editCollectionTitle,
+            descricao: editCollectionDescription,
+        });
+
+        toast({
+            title: "Coleção atualizada!",
+            description: "A coleção foi atualizada com sucesso.",
+        });
+
+        setIsEditingCollection(false);
+        setEditingCollectionId(null);
+        setEditCollectionTitle("");
+        setEditCollectionDescription("");
+
+        // Refresh data
+        const snapshot = await getDocs(collection(db, "nutricionistas", session.user.email, "colecoes"));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setColecoes(data);
+
+    } catch (error) {
+        console.error("Erro ao atualizar coleção:", error);
+        toast({
+            title: "Erro ao atualizar coleção",
+            description: "Não foi possível atualizar a coleção.",
+            variant: "destructive",
+        });
+    }
+};
     useEffect(() => {
         const fetchCollections = async () => {
             if (!session?.user?.email) return
@@ -65,7 +125,7 @@ export default function MateriaisPage() {
         if (!session?.user?.email) return
 
         try {
-            const storageRef = ref(storage, `materiais/<span class="math-inline">\{session\.user\.email\}/</span>{newCollectionPdf.name}`)
+            const storageRef = ref(storage, `materiais/<span class="math-inline">\{session\.user\.email\}/</span>{selectedCollectionId}/${newCollectionPdf.name}`);
             await uploadBytes(storageRef, newCollectionPdf)
             const url = await getDownloadURL(storageRef)
 
@@ -393,60 +453,103 @@ export default function MateriaisPage() {
                                 </CardContent>
                             </Card>
                         )}
-
+{isEditingCollection && editingCollectionId && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+            <CardHeader>
+                <CardTitle>Editar Coleção</CardTitle>
+                <CardDescription>Edite o nome e a descrição da coleção</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+                <div className="grid w-full gap-2">
+                    <Label htmlFor="edit-collection-name">Nome da Coleção</Label>
+                    <Input
+                        id="edit-collection-name"
+                        value={editCollectionTitle}
+                        onChange={(e) => setEditCollectionTitle(e.target.value)}
+                    />
+                </div>
+                <div className="grid w-full gap-2">
+                    <Label htmlFor="edit-collection-description">Descrição</Label>
+                    <Input
+                        id="edit-collection-description"
+                        value={editCollectionDescription}
+                        onChange={(e) => setEditCollectionDescription(e.target.value)}
+                    />
+                </div>
+                <div className="flex justify-end gap-2">
+                    <Button variant="secondary" onClick={handleCancelEditCollection}>
+                        Cancelar
+                    </Button>
+                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleSaveEditCollection}>
+                        Salvar Edições
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    </div>
+)}
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {colecoes.map((collection) => (
-                                <Card key={collection.id} className="rounded-2xl"> {/* A) Aumentar ainda mais a curvatura */}
-                                    <CardHeader className="flex items-center justify-between">
-                                        <CardTitle>{collection.titulo}</CardTitle>
-                                    </CardHeader>
-                                    <CardDescription className="ml-4 mb-4">{collection.descricao}</CardDescription> {/* B) Aumentar espaçamento esquerdo */}
-                                    <CardContent>
-                                        {collection.pdfs && collection.pdfs.length > 0 ? (
-                                            <ul className="space-y-2">
-                                                {collection.pdfs.map((pdf) => (
-                                                    <li key={pdf.id} className="flex items-center justify-between">
-                                                        <a
-                                                            href={pdf.pdfUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="truncate"
-                                                        >
-                                                            {pdf.nomePdf.split('.').slice(0, -1).join('.')}
-                                                        </a>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="hover:bg-destructive/10"
-                                                            onClick={() => handleDeletePdf(collection.id, pdf.id, pdf.pdfUrl)}
-                                                        >
-                                                            <X className="h-4 w-4 text-black" /> {/* C) Cor da lixeira preta */}
-                                                        </Button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p>Nenhum PDF nesta coleção.</p>
-                                        )}
-                                        <div className="mt-4 flex justify-between items-center"> {/* D) Botões na parte inferior */}
-                                            <Button
-                                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                onClick={() => handleAddPdfToCollection(collection.id)}
-                                                style={{ height: '36px' }}
-                                            >
-                                                Adicionar PDF
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleDeleteCollection(collection.id)}
-                                                style={{ height: '36px', width: '36px', padding: '0' }}
-                                            >
-                                                <Trash2 className="h-4 w-4 text-black" /> {/* C) Cor da lixeira preta */}
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <Card key={collection.id} className="rounded-2xl">
+                                <CardHeader className="flex items-center justify-between">
+                                    <CardTitle>{collection.titulo}</CardTitle>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleEditCollection(collection)} // Esta linha chama a função de edição
+                                        style={{ height: '36px', width: '36px', padding: '0' }}
+                                    >
+                                        <Edit className="h-4 w-4 text-black" /> {/* Adicione o ícone de lápis aqui */}
+                                    </Button>
+                                </CardHeader>
+                                <CardDescription className="ml-4 mb-4">{collection.descricao}</CardDescription>
+                                <CardContent>
+                                    {collection.pdfs && collection.pdfs.length > 0 ? (
+                                        <ul className="space-y-2">
+                                            {collection.pdfs.map((pdf) => (
+                                                <li key={pdf.id} className="flex items-center justify-between">
+                                                    <a
+                                                        href={pdf.pdfUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="truncate"
+                                                    >
+                                                        {pdf.nomePdf.split('.').slice(0, -1).join('.')}
+                                                    </a>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="hover:bg-destructive/10"
+                                                        onClick={() => handleDeletePdf(collection.id, pdf.id, pdf.pdfUrl)}
+                                                    >
+                                                        <X className="h-4 w-4 text-black" />
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p>Nenhum PDF nesta coleção.</p>
+                                    )}
+                                    <div className="mt-4 flex justify-between items-center">
+                                        <Button
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                            onClick={() => handleAddPdfToCollection(collection.id)}
+                                            style={{ height: '36px' }}
+                                        >
+                                            Adicionar PDF
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDeleteCollection(collection.id)}
+                                            style={{ height: '36px', width: '36px', padding: '0' }}
+                                        >
+                                            <Trash2 className="h-4 w-4 text-black" />
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
                             ))}
                         </div>
 
