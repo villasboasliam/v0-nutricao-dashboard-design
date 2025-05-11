@@ -25,3 +25,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+nutriapp-42e7f-firebase-adminsdk-fbsvc-617497dbbd.json
+
