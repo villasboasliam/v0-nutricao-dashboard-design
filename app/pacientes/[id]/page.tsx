@@ -59,9 +59,13 @@ export default function PatientDetailPage() {
   const [quadrilNovo, setQuadrilNovo] = useState("")
   const [toraxNovo, setToraxNovo] = useState("")
   const [bracoNovo, setBracoNovo] = useState("")
-
+  const [nomeDieta, setNomeDieta] = useState("");
   const [editInfoOpen, setEditInfoOpen] = useState(false)
   const [editMetricsOpen, setEditMetricsOpen] = useState(false)
+  const [isSubmittingDiet, setIsSubmittingDiet] = useState(false); // Novo estado para indicar o envio
+  const [submitButtonText, setSubmitButtonText] = useState('Enviar Dieta'); // Novo estado para o texto do botão
+  const [submitButtonColorClass, setSubmitButtonColorClass] = useState('bg-indigo-600 hover:bg-indigo-700'); // Novo estado para a cor do botão
+  
 
   const [editData, setEditData] = useState({
     name: "",
@@ -86,42 +90,58 @@ export default function PatientDetailPage() {
     return downloadURL;
   };
   const handleReplaceDiet = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!session?.user?.email) {
-      toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
-      return;
-    }
+  event.preventDefault();
+  if (!session?.user?.email) {
+    toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
+    return;
+  }
 
-    const file = selectedPDF;
-    if (!file) {
-      toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um novo arquivo PDF." });
-      return;
-    }
+  const file = selectedPDF;
+  if (!file) {
+    toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um novo arquivo PDF." });
+    return;
+  }
 
-    try {
-      // 1. **Opcional: Excluir a dieta antiga do Storage**
-      // Para implementar isso, você precisaria armazenar o nome do arquivo antigo.
-      // Por enquanto, vamos pular essa parte para simplificar.
+  if (!nomeDieta.trim()) {
+    toast({ title: "Erro", description: "Por favor, insira o nome da dieta." });
+    return;
+  }
 
-      // 2. Fazer upload da nova dieta
-      const downloadURL = await uploadPDF(file, id);
-      toast({ title: "Dieta substituída", description: "A dieta foi substituída com sucesso." });
+  setIsSubmittingDiet(true); // Indica que o envio começou
+  try {
+    const downloadURL = await uploadPDF(file, id);
 
-      // 3. Atualizar o documento do paciente no Firestore com a nova dieta
-      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
-      await updateDoc(ref, {
-        dietas: [ // Substituímos o array inteiro com a nova dieta
-          { nome: file.name, url: downloadURL, dataEnvio: new Date().toLocaleDateString() },
-        ],
-      });
+    const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+    await updateDoc(ref, {
+      dietas: [
+        { nome: file.name, url: downloadURL, dataEnvio: new Date().toLocaleDateString(), nomeDieta: nomeDieta },
+      ],
+    });
 
-      // 4. Atualizar os estados locais
-      setIsDietUploaded(true);
-    } catch (error) {
-      console.error("Erro ao substituir a dieta:", error);
-      toast({ title: "Erro ao substituir a dieta", description: "Não foi possível substituir o arquivo." });
-    }
-  };
+    setIsDietUploaded(true);
+    toast({
+      title: "Dieta Substituída",
+      description: "A dieta do paciente foi substituída com sucesso.",
+    });
+
+    // Atualiza o estado do botão para indicar sucesso
+    setSubmitButtonText("Enviado!");
+    setSubmitButtonColorClass("bg-green-500 hover:bg-green-600");
+
+    // Reverte o estado do botão após 5 segundos
+    setTimeout(() => {
+      setSubmitButtonText(isDietUploaded ? 'Substituir Dieta' : 'Enviar Dieta');
+      setSubmitButtonColorClass('bg-indigo-600 hover:bg-indigo-700');
+      setIsSubmittingDiet(false); // Indica que o envio terminou (com sucesso)
+    }, 5000);
+
+  } catch (error) {
+    console.error("Erro ao substituir a dieta:", error);
+    toast({ title: "Erro ao substituir a dieta", description: "Não foi possível substituir o arquivo." });
+    setIsSubmittingDiet(false); // Indica que o envio terminou (com erro)
+    // O estado do botão de erro pode ser implementado aqui, se necessário
+  }
+};
   const handleUploadPhotos = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!session?.user?.email) {
@@ -183,35 +203,40 @@ export default function PatientDetailPage() {
     return downloadURL;
   }
   const handleUploadPDF = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!session?.user?.email) {
-      toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
-      return;
-    }
+  event.preventDefault();
+  if (!session?.user?.email) {
+    toast({ title: "Erro de autenticação", description: "Usuário não autenticado. Tente novamente." });
+    return;
+  }
 
-    if (isDietUploaded) {
-      toast({ title: "Envio já realizado", description: "O PDF da dieta já foi enviado anteriormente." });
-      return;
-    }
+  if (isDietUploaded) {
+    toast({ title: "Envio já realizado", description: "O PDF da dieta já foi enviado anteriormente." });
+    return;
+  }
 
-    const file = selectedPDF;
-    if (!file) {
-      toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um arquivo PDF." });
-      return;
-    }
-    try {
-      const downloadURL = await uploadPDF(file, id);
-      toast({ title: "Upload concluído", description: "O arquivo foi enviado com sucesso." });
-      const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
-      await updateDoc(ref, {
-        dietas: arrayUnion({ nome: file.name, url: downloadURL, dataEnvio: new Date().toLocaleDateString() }), // Adicionando a data de envio
-      });
-      setIsDietUploaded(true);
-    } catch (error) {
-      console.error("Erro ao fazer upload:", error);
-      toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar o arquivo." });
-    }
-  };
+  const file = selectedPDF;
+  if (!file) {
+    toast({ title: "Nenhum arquivo selecionado", description: "Por favor, selecione um arquivo PDF." });
+    return;
+  }
+  try {
+    const downloadURL = await uploadPDF(file, id);
+    toast({ title: "Upload concluído", description: "O arquivo foi enviado com sucesso." });
+    const ref = doc(db, "nutricionistas", session.user.email, "pacientes", id);
+    await updateDoc(ref, {
+      dietas: arrayUnion({
+        nome: file.name, // Manter o nome do arquivo
+        url: downloadURL,
+        data: new Date().toLocaleDateString(), // Manter a data de envio
+        nomeDieta: nomeDieta, // Adicionar o nome digitado pelo usuário
+      }),
+    });
+    setIsDietUploaded(true);
+  } catch (error) {
+    console.error("Erro ao fazer upload:", error);
+    toast({ title: "Erro ao fazer upload", description: "Não foi possível enviar o arquivo." });
+  }
+};
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -649,7 +674,11 @@ export default function PatientDetailPage() {
                     <div className="flex flex-col gap-4">
                       <div className="grid gap-2">
                         <Label>Nome da Dieta</Label>
-                        <Input placeholder="Ex: Dieta de Emagrecimento - Maio 2025" />
+                        <Input
+                              placeholder="Ex: Dieta de Emagrecimento - Maio 2025"
+                              value={nomeDieta}
+                              onChange={(e) => setNomeDieta(e.target.value)}
+                            />
                       </div>
                       <div className="grid gap-2">
                         <Label>Data</Label>
@@ -687,12 +716,12 @@ export default function PatientDetailPage() {
                       )}
                       <div className="flex gap-2">
                       <Button
-                          type="submit"
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                          disabled={!selectedPDF}
-                        >
-                          {isDietUploaded ? 'Substituir Dieta' : 'Enviar Dieta'}
-                        </Button>
+                              type="submit"
+                              className={`w-full text-white ${submitButtonColorClass}`}
+                              disabled={!selectedPDF || isSubmittingDiet} // Desabilita durante o envio
+                            >
+                              {submitButtonText}
+                            </Button>
               
                       </div>
                     </div>
